@@ -92,7 +92,7 @@ export default function TeacherDemo() {
       setEditingModuleId(null);
     } else {
       addModule(moduleData);
-      setModuleMessage(`${moduleData.title} is aangemaakt. Nieuwe opdrachten starten op â€˜Nog niet gestartâ€™.`);
+      setModuleMessage(`${moduleData.title} is aangemaakt. Nieuwe opdrachten starten op ‘Nog niet gestart’.`);
     }
     event.currentTarget.reset();
   }
@@ -168,7 +168,7 @@ export default function TeacherDemo() {
         <section>
           <div className="card mb-6 p-5">
             <div className="flex items-center gap-2"><MessageSquareText className="size-5 text-teal-700" aria-hidden /><h2 className="text-xl font-black">Feedback op dezelfde opdracht</h2></div>
-            <p className="mt-1 text-sm text-slate-600">Kies Ã©Ã©n opdracht. Daarna geef je de studenten uit de gekozen klas onder elkaar persoonlijke feedback.</p>
+            <p className="mt-1 text-sm text-slate-600">Kies één opdracht. Daarna geef je de studenten uit de gekozen klas onder elkaar persoonlijke feedback.</p>
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               <label className="text-sm font-bold">1. Module<select className="field mt-1" value={feedbackModule?.id ?? ""} onChange={(event) => chooseModule(event.target.value)}>{state.modules.map((module) => <option value={module.id} key={module.id}>{module.title}</option>)}</select></label>
               <label className="text-sm font-bold">2. Opdracht<select className="field mt-1" value={feedbackAssignment} onChange={(event) => chooseAssignment(event.target.value)} disabled={!moduleAssignments.length}>{moduleAssignments.map((assignment) => <option key={assignment}>{assignment}</option>)}</select></label>
@@ -178,7 +178,7 @@ export default function TeacherDemo() {
 
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div><p className="text-sm font-bold uppercase tracking-wider text-teal-700">{feedbackModule?.title}</p><h2 className="text-2xl font-black">{feedbackAssignment || "Nog geen opdracht"}</h2>{feedbackAssignment && <div className="mt-2 flex flex-wrap gap-2">{(state.learningGoals[feedbackAssignment] ?? []).map((goal) => <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-900" key={goal}>{goal}</span>)}</div>}</div>
-            <p className="text-sm font-bold text-slate-600">{feedbackClass} Â· {classStudents.length} studenten</p>
+            <p className="text-sm font-bold text-slate-600">{feedbackClass} · {classStudents.length} studenten</p>
           </div>
 
           {feedbackAssignment ? (
@@ -223,11 +223,11 @@ export default function TeacherDemo() {
               return (
                 <details className="group card overflow-hidden" key={assignment}>
                   <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
-                    <div><p className="font-black">{assignment}</p><p className="mt-1 text-sm text-slate-500">{module?.title ?? "Zonder module"} Â· {selectedGoals.length} leerdoelen gekoppeld</p></div>
+                    <div><p className="font-black">{assignment}</p><p className="mt-1 text-sm text-slate-500">{module?.title ?? "Zonder module"} · {selectedGoals.length} leerdoelen gekoppeld</p></div>
                     <span className="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900 group-open:hidden">Aanpassen</span>
                   </summary>
                   <form className="border-t border-slate-200 p-5" onSubmit={(event) => { event.preventDefault(); const goals = new FormData(event.currentTarget).getAll("goals").map(String); updateAssignmentGoals(assignment, goals); setAssignmentMessages((current) => ({ ...current, [assignment]: "Leerdoelen opgeslagen. Studenten zien de wijziging direct." })); }}>
-                    <fieldset><legend className="font-black">Kies leerdoelen</legend><div className="mt-3 grid gap-3 md:grid-cols-2">{state.goalCatalog.map((goal) => <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3" key={goal.id}><input className="mt-1 size-4 accent-teal-700" type="checkbox" name="goals" value={goal.title} defaultChecked={selectedGoals.includes(goal.title)} /><span><span className="block text-sm font-bold">{goal.title}</span><span className="mt-0.5 block text-xs text-slate-500">{goal.domain} Â· {goal.description}</span></span></label>)}</div></fieldset>
+                    <fieldset><legend className="font-black">Kies leerdoelen</legend><div className="mt-3 grid gap-3 md:grid-cols-2">{state.goalCatalog.map((goal) => <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3" key={goal.id}><input className="mt-1 size-4 accent-teal-700" type="checkbox" name="goals" value={goal.title} defaultChecked={selectedGoals.includes(goal.title)} /><span><span className="block text-sm font-bold">{goal.title}</span><span className="mt-0.5 block text-xs text-slate-500">{goal.domain} · {goal.description}</span></span></label>)}</div></fieldset>
                     {!selectedGoals.length && <p className="mt-3 text-sm font-semibold text-amber-800">Aan deze opdracht zijn nog geen leerdoelen gekoppeld.</p>}
                     <div className="mt-4 flex flex-wrap items-center gap-3"><button className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 font-bold text-white"><Save className="size-4" aria-hidden />Leerdoelen opslaan</button>{assignmentMessages[assignment] && <p role="status" className="text-sm font-bold text-emerald-800">{assignmentMessages[assignment]}</p>}</div>
                   </form>
@@ -247,7 +247,7 @@ export default function TeacherDemo() {
             <label className="block text-sm font-bold">Periode<input className="field mt-1" name="period" defaultValue={editingModule?.period} placeholder="Periode 3" /></label>
             <label className="flex items-center gap-2 text-sm font-bold"><input className="size-4 accent-teal-700" type="checkbox" name="published" defaultChecked={editingModule?.published ?? true} />Direct zichtbaar voor studenten</label>
             <fieldset><legend className="text-sm font-bold">Beschikbaar voor klassen</legend><div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-3">{demoClasses.map((className) => <label className="flex items-center gap-2 text-sm" key={className}><input type="checkbox" className="size-4 accent-teal-700" name="cohorts" value={className} defaultChecked={editingModule ? editingModule.cohorts.includes(className) : true} />{className}</label>)}</div></fieldset>
-            <label className="block text-sm font-bold">Opdrachten <span className="font-normal text-slate-500">(gescheiden door kommaâ€™s)</span><input className="field mt-1" name="assignments" defaultValue={editingModule?.assignments.join(", ")} /></label>
+            <label className="block text-sm font-bold">Opdrachten <span className="font-normal text-slate-500">(gescheiden door komma’s)</span><input className="field mt-1" name="assignments" defaultValue={editingModule?.assignments.join(", ")} /></label>
             {moduleMessage && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">{moduleMessage}</p>}
             <div className="flex flex-wrap gap-2">
               <button className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 font-bold text-white"><Save className="size-4" aria-hidden />{editingModule ? "Wijzigingen opslaan" : "Module aanmaken"}</button>
@@ -259,7 +259,7 @@ export default function TeacherDemo() {
             <div className="space-y-3">
               {state.modules.map((module) => (
                 <article className={`card p-5 ${module.archived ? "opacity-65" : ""}`} key={module.id}>
-                  <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap gap-2"><span className="text-xs font-bold uppercase text-teal-700">{module.period || "Doorlopend"}</span><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${module.archived ? "bg-slate-100 text-slate-600" : module.published ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>{module.archived ? "Gearchiveerd" : module.published ? "Zichtbaar" : "Concept"}</span></div><h3 className="mt-1 font-black">{module.title}</h3><p className="mt-1 text-sm text-slate-600">{module.description}</p><p className="mt-2 text-xs font-semibold text-slate-500">{module.cohorts.length ? module.cohorts.join(" Â· ") : "Nog niet aan een klas gekoppeld"}</p></div><div className="flex flex-wrap gap-2"><button onClick={() => setModulePublished(module.id, !module.published)} disabled={module.archived} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold disabled:opacity-40">{module.published ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}{module.published ? "Verbergen" : "Publiceren"}</button><button onClick={() => { setEditingModuleId(module.id); setModuleMessage(""); }} disabled={module.archived} className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900 disabled:opacity-40"><Pencil className="size-4" aria-hidden />Aanpassen</button><button onClick={() => archiveModule(module.id)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold"><Archive className="size-4" aria-hidden />{module.archived ? "Herstellen" : "Archiveren"}</button></div></div>
+                  <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap gap-2"><span className="text-xs font-bold uppercase text-teal-700">{module.period || "Doorlopend"}</span><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${module.archived ? "bg-slate-100 text-slate-600" : module.published ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>{module.archived ? "Gearchiveerd" : module.published ? "Zichtbaar" : "Concept"}</span></div><h3 className="mt-1 font-black">{module.title}</h3><p className="mt-1 text-sm text-slate-600">{module.description}</p><p className="mt-2 text-xs font-semibold text-slate-500">{module.cohorts.length ? module.cohorts.join(" · ") : "Nog niet aan een klas gekoppeld"}</p></div><div className="flex flex-wrap gap-2"><button onClick={() => setModulePublished(module.id, !module.published)} disabled={module.archived} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold disabled:opacity-40">{module.published ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}{module.published ? "Verbergen" : "Publiceren"}</button><button onClick={() => { setEditingModuleId(module.id); setModuleMessage(""); }} disabled={module.archived} className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900 disabled:opacity-40"><Pencil className="size-4" aria-hidden />Aanpassen</button><button onClick={() => archiveModule(module.id)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold"><Archive className="size-4" aria-hidden />{module.archived ? "Herstellen" : "Archiveren"}</button></div></div>
                   {!module.archived && <div className="mt-4 border-t border-slate-100 pt-4"><p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Opdrachten in volgorde</p>{module.assignments.length ? <ol className="space-y-2">{module.assignments.map((assignment, index) => <li className="flex items-center gap-3 rounded-xl bg-slate-50 p-2.5 text-sm" key={assignment}><span className="grid size-7 shrink-0 place-items-center rounded-full bg-white text-xs font-black text-teal-800">{index + 1}</span><span className="min-w-0 flex-1 font-semibold">{assignment}</span><button aria-label={`${assignment} omhoog`} disabled={index === 0} onClick={() => moveAssignment(module.id, assignment, -1)} className="rounded-lg border border-slate-200 bg-white p-1.5 disabled:opacity-30"><ArrowUp className="size-4" aria-hidden /></button><button aria-label={`${assignment} omlaag`} disabled={index === module.assignments.length - 1} onClick={() => moveAssignment(module.id, assignment, 1)} className="rounded-lg border border-slate-200 bg-white p-1.5 disabled:opacity-30"><ArrowDown className="size-4" aria-hidden /></button></li>)}</ol> : <p className="text-sm text-slate-500">Nog geen opdrachten toegevoegd.</p>}</div>}
                 </article>
               ))}
@@ -277,10 +277,9 @@ export default function TeacherDemo() {
             <label className="block text-sm font-bold">Soort<select className="field mt-1" name="kind"><option>Snelle check</option><option>Feedback van docent</option><option>Feedback van medestudent</option><option>Voortgangsgesprek</option></select></label>
             <button className="rounded-xl bg-teal-700 px-4 py-2.5 font-bold text-white">Moment plannen</button>
           </form>
-          <section><h2 className="mb-4 text-xl font-black">Planning</h2><div className="space-y-3">{state.moments.map((moment) => <article className="card p-5" key={moment.id}><p className="text-xs font-bold uppercase text-indigo-700">{moment.kind} Â· {moment.cohort}</p><h3 className="mt-1 font-black">{moment.title}</h3><p className="mt-2 text-sm text-slate-600">{moment.date}</p></article>)}</div></section>
+          <section><h2 className="mb-4 text-xl font-black">Planning</h2><div className="space-y-3">{state.moments.map((moment) => <article className="card p-5" key={moment.id}><p className="text-xs font-bold uppercase text-indigo-700">{moment.kind} · {moment.cohort}</p><h3 className="mt-1 font-black">{moment.title}</h3><p className="mt-2 text-sm text-slate-600">{moment.date}</p></article>)}</div></section>
         </div>
       )}
     </>
   );
 }
-
