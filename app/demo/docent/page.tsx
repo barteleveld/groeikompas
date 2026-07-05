@@ -5,6 +5,8 @@ import { MessageSquareText, Pencil, Save } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import {
   demoAssignmentStatuses,
+  demoClasses,
+  demoStudentClasses,
   demoStudents,
   type DemoAssignmentStatus,
   useDemo,
@@ -25,31 +27,35 @@ export default function TeacherDemo() {
   const [tab, setTab] = useState<Tab>("overzicht");
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [moduleMessage, setModuleMessage] = useState("");
-  const [feedbackStudent, setFeedbackStudent] = useState("Lina Bakker");
+  const [feedbackModuleId, setFeedbackModuleId] = useState("m1");
   const [feedbackAssignment, setFeedbackAssignment] = useState("DESTEP-analyse");
-  const [feedbackStatus, setFeedbackStatus] = useState<DemoAssignmentStatus>("Feedback ontvangen");
-  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackClass, setFeedbackClass] = useState(demoClasses[0]);
+  const [feedbackMessages, setFeedbackMessages] = useState<Record<string, string>>({});
 
-  const allAssignments = [...new Set(state.modules.flatMap((module) => module.assignments))];
   const editingModule = state.modules.find((module) => module.id === editingModuleId);
+  const feedbackModule = state.modules.find((module) => module.id === feedbackModuleId) ?? state.modules[0];
+  const moduleAssignments = feedbackModule?.assignments ?? [];
+  const classStudents = demoStudents.filter((student) => demoStudentClasses[student] === feedbackClass);
 
   function openFeedback(student: string) {
-    setFeedbackStudent(student);
-    const assignment = allAssignments[0] ?? "";
-    setFeedbackAssignment(assignment);
-    setFeedbackStatus(state.assignmentProgress[student]?.[assignment] ?? "Nog niet gestart");
+    const currentModule = state.modules[0];
+    setFeedbackModuleId(currentModule?.id ?? "");
+    setFeedbackAssignment(currentModule?.assignments[0] ?? "");
+    setFeedbackClass(demoStudentClasses[student] ?? demoClasses[0]);
     setTab("feedback");
-    setFeedbackMessage("");
+    setFeedbackMessages({});
   }
 
-  function chooseStudent(student: string) {
-    setFeedbackStudent(student);
-    setFeedbackStatus(state.assignmentProgress[student]?.[feedbackAssignment] ?? "Nog niet gestart");
+  function chooseModule(moduleId: string) {
+    const currentModule = state.modules.find((item) => item.id === moduleId);
+    setFeedbackModuleId(moduleId);
+    setFeedbackAssignment(currentModule?.assignments[0] ?? "");
+    setFeedbackMessages({});
   }
 
   function chooseAssignment(assignment: string) {
     setFeedbackAssignment(assignment);
-    setFeedbackStatus(state.assignmentProgress[feedbackStudent]?.[assignment] ?? "Nog niet gestart");
+    setFeedbackMessages({});
   }
 
   function saveModule(event: React.FormEvent<HTMLFormElement>) {
@@ -72,17 +78,17 @@ export default function TeacherDemo() {
     event.currentTarget.reset();
   }
 
-  function submitFeedback(event: React.FormEvent<HTMLFormElement>) {
+  function submitFeedback(student: string, event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     saveAssignmentFeedback({
-      student: feedbackStudent,
+      student,
       assignment: feedbackAssignment,
-      status: feedbackStatus,
+      status: String(form.get("status")) as DemoAssignmentStatus,
       feedback: String(form.get("feedback")),
       nextStep: String(form.get("nextStep")),
     });
-    setFeedbackMessage(`Feedback op ${feedbackAssignment} is opgeslagen voor ${feedbackStudent}.`);
+    setFeedbackMessages((current) => ({ ...current, [student]: `Feedback voor ${student} is opgeslagen.` }));
     event.currentTarget.reset();
   }
 
@@ -119,45 +125,58 @@ export default function TeacherDemo() {
           <section className="card h-fit p-5">
             <h2 className="font-black">Zo werkt opdrachtfeedback</h2>
             <ol className="mt-3 space-y-3 text-sm text-slate-700">
-              <li><strong>1.</strong> Kies een student en opdracht.</li>
-              <li><strong>2.</strong> Controleer of wijzig de opdrachtstatus.</li>
-              <li><strong>3.</strong> Schrijf feedback en een concrete volgende stap.</li>
+              <li><strong>1.</strong> Kies eerst de module en opdracht.</li>
+              <li><strong>2.</strong> Filter daarna op klas.</li>
+              <li><strong>3.</strong> Geef de studenten onder elkaar individuele feedback.</li>
             </ol>
           </section>
         </div>
       )}
 
       {tab === "feedback" && (
-        <div className="grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
-          <form className="card h-fit space-y-4 p-5" onSubmit={submitFeedback}>
-            <div className="flex items-center gap-2"><MessageSquareText className="size-5 text-teal-700" aria-hidden /><h2 className="text-xl font-black">Feedback op opdracht</h2></div>
-            <label className="block text-sm font-bold">Student<select className="field mt-1" value={feedbackStudent} onChange={(event) => chooseStudent(event.target.value)}>{demoStudents.map((student) => <option key={student}>{student}</option>)}</select></label>
-            <label className="block text-sm font-bold">Opdracht<select className="field mt-1" value={feedbackAssignment} onChange={(event) => chooseAssignment(event.target.value)} required>{allAssignments.map((assignment) => <option key={assignment}>{assignment}</option>)}</select></label>
-            <label className="block text-sm font-bold">Status<select className="field mt-1" value={feedbackStatus} onChange={(event) => setFeedbackStatus(event.target.value as DemoAssignmentStatus)}>{demoAssignmentStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
-            <label className="block text-sm font-bold">Wat gaat al goed?<textarea className="field mt-1 min-h-24" name="feedback" required /></label>
-            <label className="block text-sm font-bold">Wat is de volgende stap?<textarea className="field mt-1 min-h-24" name="nextStep" required /></label>
-            {feedbackMessage && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">{feedbackMessage}</p>}
-            <button className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 font-bold text-white"><Save className="size-4" aria-hidden />Feedback opslaan</button>
-          </form>
-          <section>
-            <h2 className="mb-1 text-xl font-black">Opdrachtstatussen van {feedbackStudent}</h2>
-            <p className="mb-4 text-sm text-slate-600">Iedere opdracht heeft altijd minimaal de status â€˜Nog niet gestartâ€™.</p>
-            <div className="space-y-3">
-              {state.modules.map((module) => (
-                <article className="card p-5" key={module.id}>
-                  <p className="text-xs font-bold uppercase tracking-wide text-teal-700">{module.period || "Doorlopend"}</p>
-                  <h3 className="mt-1 font-black">{module.title}</h3>
-                  <ul className="mt-3 space-y-2">
-                    {module.assignments.map((assignment) => {
-                      const status = state.assignmentProgress[feedbackStudent]?.[assignment] ?? "Nog niet gestart";
-                      return <li className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3 text-sm" key={assignment}><span className="font-bold">{assignment}</span><span className={`rounded-full px-2 py-1 text-xs font-bold ${statusColor(status)}`}>{status}</span></li>;
-                    })}
-                  </ul>
-                </article>
-              ))}
+        <section>
+          <div className="card mb-6 p-5">
+            <div className="flex items-center gap-2"><MessageSquareText className="size-5 text-teal-700" aria-hidden /><h2 className="text-xl font-black">Feedback op dezelfde opdracht</h2></div>
+            <p className="mt-1 text-sm text-slate-600">Kies Ã©Ã©n opdracht. Daarna geef je de studenten uit de gekozen klas onder elkaar persoonlijke feedback.</p>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <label className="text-sm font-bold">1. Module<select className="field mt-1" value={feedbackModule?.id ?? ""} onChange={(event) => chooseModule(event.target.value)}>{state.modules.map((module) => <option value={module.id} key={module.id}>{module.title}</option>)}</select></label>
+              <label className="text-sm font-bold">2. Opdracht<select className="field mt-1" value={feedbackAssignment} onChange={(event) => chooseAssignment(event.target.value)} disabled={!moduleAssignments.length}>{moduleAssignments.map((assignment) => <option key={assignment}>{assignment}</option>)}</select></label>
+              <label className="text-sm font-bold">3. Klas<select className="field mt-1" value={feedbackClass} onChange={(event) => { setFeedbackClass(event.target.value); setFeedbackMessages({}); }}>{demoClasses.map((className) => <option key={className}>{className}</option>)}</select></label>
             </div>
-          </section>
-        </div>
+          </div>
+
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <div><p className="text-sm font-bold uppercase tracking-wider text-teal-700">{feedbackModule?.title}</p><h2 className="text-2xl font-black">{feedbackAssignment || "Nog geen opdracht"}</h2></div>
+            <p className="text-sm font-bold text-slate-600">{feedbackClass} Â· {classStudents.length} studenten</p>
+          </div>
+
+          {feedbackAssignment ? (
+            <div className="space-y-4">
+              {classStudents.map((student, index) => {
+                const currentStatus = state.assignmentProgress[student]?.[feedbackAssignment] ?? "Nog niet gestart";
+                return (
+                  <form key={`${student}-${feedbackAssignment}`} className="card p-5" onSubmit={(event) => submitFeedback(student, event)}>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Student {index + 1} van {classStudents.length}</p><h3 className="mt-1 text-lg font-black">{student}</h3></div>
+                      <span className={`rounded-full px-2 py-1 text-xs font-bold ${statusColor(currentStatus)}`}>{currentStatus}</span>
+                    </div>
+                    <div className="mt-4 grid gap-4 lg:grid-cols-[.65fr_1fr_1fr]">
+                      <label className="text-sm font-bold">Status<select className="field mt-1" name="status" defaultValue={currentStatus}>{demoAssignmentStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+                      <label className="text-sm font-bold">Wat gaat al goed?<textarea className="field mt-1 min-h-24" name="feedback" required /></label>
+                      <label className="text-sm font-bold">Volgende stap<textarea className="field mt-1 min-h-24" name="nextStep" required /></label>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <button className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 font-bold text-white"><Save className="size-4" aria-hidden />Opslaan voor {student.split(" ")[0]}</button>
+                      {feedbackMessages[student] && <p role="status" className="text-sm font-bold text-emerald-800">{feedbackMessages[student]}</p>}
+                    </div>
+                  </form>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="card p-5 text-slate-600">Deze module bevat nog geen opdrachten. Voeg eerst een opdracht toe via Modules.</p>
+          )}
+        </section>
       )}
 
       {tab === "modules" && (
