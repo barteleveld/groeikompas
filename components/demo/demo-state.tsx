@@ -24,6 +24,7 @@ export type DemoModule = {
   cohorts: string[];
 };
 export type DemoMoment = { id: string; title: string; date: string; kind: string; cohort: string };
+export type DemoLearningGoal = { id: string; title: string; description: string; domain: string };
 export type DemoAssignmentFeedback = {
   id: string;
   student: string;
@@ -44,6 +45,7 @@ type DemoState = {
   assignmentProgress: Record<string, Record<string, DemoAssignmentStatus>>;
   assignmentFeedback: DemoAssignmentFeedback[];
   assignmentSubmissions: Record<string, string[]>;
+  goalCatalog: DemoLearningGoal[];
   learningGoals: Record<string, string[]>;
   notifications: DemoNotification[];
 };
@@ -51,6 +53,17 @@ type DemoState = {
 const initialModules: DemoModule[] = [
   { id: "m1", title: "Omgevingsonderzoek", description: "Van trends naar een heldere analyse.", period: "Periode 1", assignments: ["DESTEP-analyse", "SWOT-analyse", "Doelgroepanalyse"], published: true, archived: false, cohorts: [demoClasses[0]] },
   { id: "m2", title: "Van analyse naar advies", description: "Onderbouw een advies en maak een passende uiting.", period: "Periode 2", assignments: ["Adviesposter", "Adviespresentatie"], published: true, archived: false, cohorts: demoClasses },
+];
+
+const initialGoalCatalog: DemoLearningGoal[] = [
+  { id: "g1", title: "Trends onderzoeken", description: "Relevante ontwikkelingen herkennen en duiden.", domain: "Onderzoek" },
+  { id: "g2", title: "Betrouwbare bronnen gebruiken", description: "Bronnen selecteren en controleerbaar verwerken.", domain: "Onderzoek" },
+  { id: "g3", title: "Informatie analyseren", description: "Gegevens ordenen en betekenisvolle verbanden leggen.", domain: "Analyse" },
+  { id: "g4", title: "Sterktes en risico's afwegen", description: "Interne en externe factoren tegen elkaar afwegen.", domain: "Analyse" },
+  { id: "g5", title: "Doelgroepbehoeften herkennen", description: "Inzichten vertalen naar behoeften van de doelgroep.", domain: "Doelgroep" },
+  { id: "g6", title: "Advies helder visualiseren", description: "Een advies begrijpelijk en passend vormgeven.", domain: "Communicatie" },
+  { id: "g7", title: "Keuzes onderbouwen", description: "Keuzes uitleggen met argumenten en bewijs.", domain: "Advies" },
+  { id: "g8", title: "Professioneel presenteren", description: "Een overtuigend en doelgroepgericht verhaal presenteren.", domain: "Communicatie" },
 ];
 
 function defaultProgress(modules: DemoModule[]) {
@@ -83,6 +96,7 @@ const initial: DemoState = {
     createdAt: "Vandaag",
   }],
   assignmentSubmissions: { "DESTEP-analyse": ["DESTEP-analyse â€“ versie 1.pdf"] },
+  goalCatalog: initialGoalCatalog,
   learningGoals: {
     "DESTEP-analyse": ["Trends onderzoeken", "Betrouwbare bronnen gebruiken"],
     "SWOT-analyse": ["Informatie analyseren", "Sterktes en risico's afwegen"],
@@ -120,6 +134,7 @@ function normalizeState(candidate: LegacyState): DemoState {
     assignmentProgress,
     assignmentFeedback,
     assignmentSubmissions: candidate.assignmentSubmissions ?? { "DESTEP-analyse": candidate.submissions ?? initial.assignmentSubmissions["DESTEP-analyse"] },
+    goalCatalog: candidate.goalCatalog ?? initial.goalCatalog,
     learningGoals: candidate.learningGoals ?? initial.learningGoals,
     notifications: (candidate.notifications ?? initial.notifications).map((notification) => ({ ...notification, assignment: notification.assignment ?? (notification.title.includes("DESTEP") ? "DESTEP-analyse" : undefined) })),
   };
@@ -139,6 +154,9 @@ type Ctx = {
   setModulePublished: (id: string, published: boolean) => void;
   archiveModule: (id: string) => void;
   moveAssignment: (moduleId: string, assignment: string, direction: -1 | 1) => void;
+  updateAssignmentGoals: (assignment: string, goals: string[]) => void;
+  addLearningGoal: (goal: Omit<DemoLearningGoal, "id">) => void;
+  updateLearningGoal: (id: string, goal: Omit<DemoLearningGoal, "id">) => void;
 };
 
 const DemoContext = createContext<Ctx | null>(null);
@@ -201,6 +219,16 @@ export function DemoStateProvider({ children }: { children: React.ReactNode }) {
       const assignments = [...module.assignments]; [assignments[index], assignments[nextIndex]] = [assignments[nextIndex], assignments[index]];
       return { ...module, assignments };
     }) })),
+    updateAssignmentGoals: (assignment, goals) => setState((current) => ({ ...current, learningGoals: { ...current.learningGoals, [assignment]: goals } })),
+    addLearningGoal: (goal) => setState((current) => ({ ...current, goalCatalog: [...current.goalCatalog, { ...goal, id: crypto.randomUUID() }] })),
+    updateLearningGoal: (id, goal) => setState((current) => {
+      const previous = current.goalCatalog.find((item) => item.id === id);
+      return {
+        ...current,
+        goalCatalog: current.goalCatalog.map((item) => item.id === id ? { ...goal, id } : item),
+        learningGoals: previous && previous.title !== goal.title ? Object.fromEntries(Object.entries(current.learningGoals).map(([assignment, goals]) => [assignment, goals.map((title) => title === previous.title ? goal.title : title)])) : current.learningGoals,
+      };
+    }),
   }), [state]);
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
