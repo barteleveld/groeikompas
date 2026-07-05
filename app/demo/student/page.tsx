@@ -7,10 +7,20 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/status/status-badge";
 import { useDemo } from "@/components/demo/demo-state";
 
+function progressColor(status: string) {
+  if (status === "Afgerond") return "bg-emerald-50 text-emerald-900";
+  if (status === "Feedback ontvangen") return "bg-fuchsia-50 text-fuchsia-900";
+  if (status === "Ingeleverd") return "bg-amber-50 text-amber-900";
+  if (status === "Bezig") return "bg-blue-50 text-blue-900";
+  return "bg-slate-100 text-slate-700";
+}
+
 export default function StudentDemo() {
   const { state, respond, addSubmission, markRead } = useDemo();
   const [response, setResponse] = useState(state.feedbackResponse);
   const [file, setFile] = useState("");
+  const assignmentFeedback = state.assignmentFeedback.filter((item) => item.student === "Lina Bakker");
+  const latestFeedback = assignmentFeedback.at(-1);
 
   return (
     <>
@@ -30,7 +40,7 @@ export default function StudentDemo() {
         <SummaryCard icon={BookCheck} value="2 van 6" label="opdrachten afgerond" hint="Taken en leerdoelen blijven apart." />
         <SummaryCard icon={ClipboardList} value="4" label="opdrachten open" hint="Je ziet steeds wat hierna komt." />
         <SummaryCard icon={MessageSquareText} value="1" label="wacht op feedback" hint="Je docent is nu aan zet." />
-        <SummaryCard icon={Target} value={state.feedbackResponse ? "0" : "1"} label="feedback te verwerken" hint="Laat zien wat je hebt aangepast." />
+        <SummaryCard icon={Target} value={state.feedbackResponse ? "0" : String(assignmentFeedback.length)} label="feedback te verwerken" hint="Laat zien wat je hebt aangepast." />
       </section>
 
       <section id="modules" className="mt-8 scroll-mt-6">
@@ -51,12 +61,15 @@ export default function StudentDemo() {
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Opdrachten</p>
                   {module.assignments.length ? (
                     <ul className="mt-2 space-y-2">
-                      {module.assignments.map((assignment) => (
-                        <li className="flex items-start gap-2 text-sm font-semibold" key={assignment}>
-                          <BookCheck className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />
-                          {assignment}
-                        </li>
-                      ))}
+                      {module.assignments.map((assignment) => {
+                        const status = state.assignmentProgress["Lina Bakker"]?.[assignment] ?? "Nog niet gestart";
+                        return (
+                          <li className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-2.5 text-sm" key={assignment}>
+                            <span className="flex items-start gap-2 font-semibold"><BookCheck className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />{assignment}</span>
+                            <span className={`rounded-full px-2 py-1 text-xs font-bold ${progressColor(status)}`}>{status}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <p className="mt-2 text-sm text-slate-500">Nog geen opdrachten toegevoegd.</p>
@@ -73,13 +86,13 @@ export default function StudentDemo() {
           <section className="card p-5">
             <div className="flex justify-between gap-2">
               <div>
-                <p className="text-xs font-bold uppercase text-fuchsia-800">DESTEP-analyse</p>
+                <p className="text-xs font-bold uppercase text-fuchsia-800">{latestFeedback?.assignment ?? "DESTEP-analyse"}</p>
                 <h2 className="mt-1 text-xl font-black">Feedback verwerken</h2>
               </div>
               <StatusBadge value={state.feedbackResponse ? "feedback_processed" : "feedback_received"} />
             </div>
-            <p className="mt-4"><strong>Wat gaat al goed?</strong><br />Je hebt bruikbare trends gevonden en je bronnen zijn helder vermeld.</p>
-            <p className="mt-3 rounded-xl bg-fuchsia-50 p-3"><strong>Volgende stap:</strong><br />Leg per trend uit wat deze concreet betekent voor de organisatie.</p>
+            <p className="mt-4"><strong>Wat gaat al goed?</strong><br />{latestFeedback?.feedback ?? "Je hebt bruikbare trends gevonden en je bronnen zijn helder vermeld."}</p>
+            <p className="mt-3 rounded-xl bg-fuchsia-50 p-3"><strong>Volgende stap:</strong><br />{latestFeedback?.nextStep ?? "Leg per trend uit wat deze concreet betekent voor de organisatie."}</p>
             {state.feedbackResponse ? (
               <div className="mt-4 rounded-xl bg-emerald-50 p-4"><strong>Jouw reactie:</strong><p className="mt-1">{state.feedbackResponse}</p></div>
             ) : (
