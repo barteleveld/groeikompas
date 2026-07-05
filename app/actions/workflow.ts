@@ -47,6 +47,16 @@ export async function saveModule(_: WorkflowState, formData: FormData): Promise<
   return { success: parsed.data.id ? "Module bijgewerkt." : "Module aangemaakt." };
 }
 
+export async function setModuleArchived(formData: FormData) {
+  await requireRole("teacher", "admin");
+  const parsed = z.object({ id: z.uuid(), archived: z.enum(["true", "false"]) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  const supabase = await createClient();
+  const archived = parsed.data.archived === "true";
+  await supabase.from("modules").update({ archived_at: archived ? new Date().toISOString() : null, ...(archived ? { is_published: false } : {}) }).eq("id", parsed.data.id);
+  revalidatePath("/teacher/modules");
+}
+
 export async function saveFeedbackMoment(_: WorkflowState, formData: FormData): Promise<WorkflowState> {
   const teacher = await requireRole("teacher", "admin");
   const parsed = z.object({
@@ -90,3 +100,4 @@ export async function markNotificationRead(formData: FormData) {
   await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id.data).eq("user_id", profile.id);
   revalidatePath(`/${profile.role === "student" ? "student" : "teacher"}/meldingen`);
 }
+
