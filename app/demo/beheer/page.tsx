@@ -55,8 +55,7 @@ export default function AdminDemo() {
         <section><h2 className="mb-4 text-xl font-black">Gebruikers</h2><div className="space-y-3">{state.users.map((user) => <article className="card flex items-center justify-between p-4" key={user.id}><p className="font-black">{user.name}</p><span className="rounded-full bg-teal-50 px-2 py-1 text-xs font-bold text-teal-900">{user.role}</span></article>)}</div></section>
       </div>}
 
-      {tab === "modules" && <section><h2 className="mb-4 text-xl font-black">Modules</h2><div className="grid gap-3 sm:grid-cols-2">{state.modules.map((module) => <article className="card p-4" key={module.id}><p className="font-black">{module.title}</p><p className="mt-1 text-sm text-slate-600">{module.period} Â· {module.assignments.length} opdrachten</p><p className="mt-2 text-xs font-semibold text-slate-500">{module.assignments.reduce((total, assignment) => total + (state.learningGoals[assignment]?.length ?? 0), 0)} leerdoelkoppelingen</p></article>)}</div></section>}
+      {tab === "modules" && <section><h2 className="mb-4 text-xl font-black">Modules</h2><div className="grid gap-3 sm:grid-cols-2">{state.modules.map((module) => <article className="card p-4" key={module.id}><p className="font-black">{module.title}</p><p className="mt-1 text-sm text-slate-600">{module.period} · {module.assignments.length} opdrachten</p><p className="mt-2 text-xs font-semibold text-slate-500">{module.assignments.reduce((total, assignment) => total + (state.learningGoals[assignment]?.length ?? 0), 0)} leerdoelkoppelingen</p></article>)}</div></section>}
     </>
   );
 }
-
