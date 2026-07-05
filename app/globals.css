@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --color-teal-50: #fff1f6;
+  --color-teal-100: #ffe4ef;
+  --color-teal-200: #fecddd;
+  --color-teal-300: #fda4c2;
+  --color-teal-400: #f65a92;
+  --color-teal-500: #e91e67;
+  --color-teal-600: #d6085f;
+  --color-teal-700: #b80050;
+  --color-teal-800: #930044;
+  --color-teal-900: #78003a;
+  --color-teal-950: #4b0025;
+
+  --color-indigo-50: #fff7ed;
+  --color-indigo-100: #ffedd5;
+  --color-indigo-200: #fed7aa;
+  --color-indigo-300: #fdba74;
+  --color-indigo-400: #fb923c;
+  --color-indigo-500: #f97316;
+  --color-indigo-600: #ea580c;
+  --color-indigo-700: #c2410c;
+  --color-indigo-800: #9a3412;
+  --color-indigo-900: #7c2d12;
+  --color-indigo-950: #431407;
+}
+
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #fffaf8; font-family: Arial, Helvetica, sans-serif; }
+a { text-underline-offset: 3px; }
+input, select, textarea { font: inherit; }
+.field {
+  width: 100%; min-height: 2.75rem; border: 1px solid #cbd5e1; border-radius: .75rem;
+  background: white; padding: .65rem .8rem; color: #0f172a;
+}
+.field:focus { outline: 3px solid #fecddd; outline-offset: 1px; border-color: #b80050; }
+.card { border: 1px solid #eadfe5; border-radius: 1rem; background: white; box-shadow: 0 1px 2px rgb(75 0 37 / .05); }
+.app-canvas { background: linear-gradient(180deg, #fff 0, #fffaf8 12rem); }
+.brand-word {
+  background: linear-gradient(90deg, #d50062 0%, #e40064 45%, #f05a13 72%, #f46a18 100%);
+  background-clip: text;
+  color: transparent;
+}
+.brand-lockup {
+  position: relative;
+  width: min(100%, 22rem);
+  aspect-ratio: 3.3 / 1;
+  overflow: hidden;
+}
+.brand-lockup img {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: auto;
+  transform: translateY(-30.5%);
+}
