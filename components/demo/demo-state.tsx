@@ -104,7 +104,6 @@ type Ctx = {
   respond: (text: string) => void;
   addSubmission: (name: string) => void;
   markRead: (id: string) => void;
-  reset: () => void;
 };
 
 const DemoContext = createContext<Ctx | null>(null);
@@ -117,7 +116,7 @@ export function DemoStateProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem("groeikompas-demo") ?? localStorage.getItem("groeiwijzer-demo");
     queueMicrotask(() => {
       if (saved) {
-        try { setState(normalizeState(JSON.parse(saved))); } catch { /* Gebruik veilige voorbeeldgegevens. */ }
+        try { setState(normalizeState(JSON.parse(saved))); } catch { /* Behoud de bestaande opleidingsgegevens. */ }
       }
       setHydrated(true);
     });
@@ -144,7 +143,6 @@ export function DemoStateProvider({ children }: { children: React.ReactNode }) {
     respond: (text) => setState((current) => ({ ...current, feedbackResponse: text, notifications: current.notifications.map((notification) => notification.id === "n1" ? { ...notification, read: true } : notification) })),
     addSubmission: (name) => setState((current) => ({ ...current, submissions: [...current.submissions, name] })),
     markRead: (id) => setState((current) => ({ ...current, notifications: current.notifications.map((notification) => notification.id === id ? { ...notification, read: true } : notification) })),
-    reset: () => setState(initial),
   }), [state]);
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
@@ -154,10 +152,5 @@ export function useDemo() {
   const value = useContext(DemoContext);
   if (!value) throw new Error("DemoStateProvider ontbreekt");
   return value;
-}
-
-export function DemoResetButton() {
-  const { reset } = useDemo();
-  return <button onClick={reset} className="rounded-lg px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100">Demo resetten</button>;
 }
 
