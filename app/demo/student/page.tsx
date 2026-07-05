@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BookCheck, ClipboardList, Layers3, MessageSquareText, Target } from "lucide-react";
+import { BookCheck, CheckCircle2, ChevronDown, ClipboardList, Layers3, MessageSquareText, Target } from "lucide-react";
 import { SummaryCard } from "@/components/dashboard/summary-card";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/status/status-badge";
@@ -21,6 +21,12 @@ export default function StudentDemo() {
   const [file, setFile] = useState("");
   const assignmentFeedback = state.assignmentFeedback.filter((item) => item.student === "Lina Bakker");
   const latestFeedback = assignmentFeedback.at(-1);
+  const assignments = state.modules.flatMap((module) => module.assignments);
+  const progress = state.assignmentProgress["Lina Bakker"] ?? {};
+  const completedAssignments = assignments.filter((assignment) => progress[assignment] === "Afgerond").length;
+  const activeAssignments = assignments.filter((assignment) => !["Nog niet gestart", "Afgerond"].includes(progress[assignment] ?? "Nog niet gestart")).length;
+  const waitingForFeedback = assignments.filter((assignment) => progress[assignment] === "Ingeleverd").length;
+  const totalProgress = assignments.length ? Math.round((completedAssignments / assignments.length) * 100) : 0;
 
   return (
     <>
@@ -37,9 +43,9 @@ export default function StudentDemo() {
       />
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard icon={BookCheck} value="2 van 6" label="opdrachten afgerond" hint="Taken en leerdoelen blijven apart." />
-        <SummaryCard icon={ClipboardList} value="4" label="opdrachten open" hint="Je ziet steeds wat hierna komt." />
-        <SummaryCard icon={MessageSquareText} value="1" label="wacht op feedback" hint="Je docent is nu aan zet." />
+        <SummaryCard icon={BookCheck} value={`${completedAssignments} van ${assignments.length}`} label="opdrachten afgerond" hint={`${totalProgress}% van alle opdrachten is klaar.`} />
+        <SummaryCard icon={ClipboardList} value={String(activeAssignments)} label="opdrachten bezig" hint="Hier kun je direct mee verder." />
+        <SummaryCard icon={MessageSquareText} value={String(waitingForFeedback)} label="wacht op feedback" hint="Je docent is nu aan zet." />
         <SummaryCard icon={Target} value={state.feedbackResponse ? "0" : String(assignmentFeedback.length)} label="feedback te verwerken" hint="Laat zien wat je hebt aangepast." />
       </section>
 
@@ -49,36 +55,77 @@ export default function StudentDemo() {
           <h2 className="mt-1 text-2xl font-black">Mijn modules</h2>
           <p className="mt-1 text-sm text-slate-600">Nieuwe modules van je docent verschijnen hier automatisch.</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {state.modules.map((module) => (
-            <article className="card overflow-hidden" key={module.id}>
-              <div className="h-1.5 bg-gradient-to-r from-teal-600 to-indigo-500" />
-              <div className="p-5">
-                <p className="text-xs font-bold uppercase tracking-wide text-teal-700">{module.period || "Doorlopend"}</p>
-                <h3 className="mt-1 text-lg font-black">{module.title}</h3>
-                <p className="mt-2 text-sm text-slate-600">{module.description || "Je docent heeft nog geen beschrijving toegevoegd."}</p>
-                <div className="mt-4 border-t border-slate-100 pt-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Opdrachten</p>
-                  {module.assignments.length ? (
-                    <ul className="mt-2 space-y-2">
-                      {module.assignments.map((assignment) => {
-                        const status = state.assignmentProgress["Lina Bakker"]?.[assignment] ?? "Nog niet gestart";
-                        return (
-                          <li className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-2.5 text-sm" key={assignment}>
-                            <span className="flex items-start gap-2 font-semibold"><BookCheck className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden />{assignment}</span>
-                            <span className={`rounded-full px-2 py-1 text-xs font-bold ${progressColor(status)}`}>{status}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 text-sm text-slate-500">Nog geen opdrachten toegevoegd.</p>
-                  )}
-                </div>
+        <details className="group overflow-hidden rounded-3xl border border-rose-100 bg-white shadow-sm shadow-rose-950/5">
+          <summary data-testid="modules-summary" className="flex cursor-pointer list-none flex-col gap-5 p-5 marker:content-none sm:p-6 lg:flex-row lg:items-center lg:justify-between [&::-webkit-details-marker]:hidden">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-teal-600 to-indigo-500 text-white shadow-sm"><Layers3 className="size-6" aria-hidden /></span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wider text-teal-700">Totaaloverzicht</p>
+                <h3 className="mt-1 text-xl font-black">{state.modules.length} modules Â· {assignments.length} opdrachten</h3>
+                <p className="mt-1 text-sm text-slate-600">{completedAssignments} afgerond, {activeAssignments} bezig en {assignments.length - completedAssignments - activeAssignments} nog te starten</p>
               </div>
-            </article>
-          ))}
-        </div>
+            </div>
+            <div className="flex items-center gap-4 lg:min-w-72">
+              <div className="min-w-0 flex-1">
+                <div className="mb-1.5 flex justify-between text-xs font-bold"><span>Totale voortgang</span><span>{totalProgress}%</span></div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-teal-600 to-indigo-500 transition-all" style={{ width: `${totalProgress}%` }} /></div>
+              </div>
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-rose-50 text-teal-800 transition-transform group-open:rotate-180"><ChevronDown className="size-5" aria-hidden /></span>
+            </div>
+          </summary>
+
+          <div className="border-t border-rose-100 bg-[#fffaf8] p-4 sm:p-6">
+            <p className="mb-4 text-sm font-semibold text-slate-600">Open een module om de opdrachten en hun status te bekijken.</p>
+            <div className="space-y-4">
+              {state.modules.map((module) => {
+                const moduleCompleted = module.assignments.filter((assignment) => progress[assignment] === "Afgerond").length;
+                const moduleActive = module.assignments.filter((assignment) => !["Nog niet gestart", "Afgerond"].includes(progress[assignment] ?? "Nog niet gestart")).length;
+                const moduleProgress = module.assignments.length ? Math.round((moduleCompleted / module.assignments.length) * 100) : 0;
+                return (
+                  <details className="group/module overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" key={module.id}>
+                    <summary data-testid={`module-summary-${module.id}`} className="flex cursor-pointer list-none flex-col gap-4 p-5 marker:content-none md:flex-row md:items-center md:justify-between [&::-webkit-details-marker]:hidden">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase tracking-wide text-teal-700">{module.period || "Doorlopend"}</p>
+                        <h3 className="mt-1 text-lg font-black">{module.title}</h3>
+                        <p className="mt-1 text-sm text-slate-600">{module.description || "Je docent heeft nog geen beschrijving toegevoegd."}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <div className="text-right"><p className="text-sm font-black">{moduleCompleted} van {module.assignments.length} klaar</p><p className="text-xs text-slate-500">{moduleActive ? `${moduleActive} bezig` : moduleCompleted === module.assignments.length && module.assignments.length ? "Module afgerond" : "Klaar om te starten"}</p></div>
+                        <div className="grid size-11 place-items-center rounded-full bg-slate-100 text-sm font-black text-slate-700">{moduleProgress}%</div>
+                        <ChevronDown className="size-5 text-slate-500 transition-transform group-open/module:rotate-180" aria-hidden />
+                      </div>
+                    </summary>
+
+                    <div className="border-t border-slate-100 p-4 sm:p-5">
+                      {module.assignments.length ? (
+                        <ul className="space-y-3">
+                          {module.assignments.map((assignment, index) => {
+                            const status = progress[assignment] ?? "Nog niet gestart";
+                            const feedback = assignmentFeedback.filter((item) => item.assignment === assignment).at(-1);
+                            return (
+                              <li className="rounded-2xl border border-slate-100 bg-slate-50 p-4" key={assignment}>
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div className="flex min-w-0 items-start gap-3">
+                                    <span className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-black ${status === "Afgerond" ? "bg-emerald-100 text-emerald-800" : "bg-white text-slate-500 shadow-sm"}`}>{status === "Afgerond" ? <CheckCircle2 className="size-4" aria-hidden /> : index + 1}</span>
+                                    <div><p className="font-bold">{assignment}</p>{feedback && <p className="mt-1 text-xs font-semibold text-fuchsia-800">Feedback van je docent beschikbaar</p>}</div>
+                                  </div>
+                                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${progressColor(status)}`}>{status}</span>
+                                </div>
+                                {feedback && <div className="mt-3 rounded-xl bg-white p-3 text-sm text-slate-700"><strong>Volgende stap:</strong> {feedback.nextStep}</div>}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-slate-500">Nog geen opdrachten toegevoegd.</p>
+                      )}
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </div>
+        </details>
       </section>
 
       <div className="mt-8 grid gap-7 lg:grid-cols-[1.2fr_.8fr]">
