@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquareText, Pencil, Save } from "lucide-react";
+import { Archive, ArrowDown, ArrowUp, Eye, EyeOff, MessageSquareText, Pencil, Save } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import {
   demoAssignmentStatuses,
@@ -23,7 +23,7 @@ function statusColor(status: DemoAssignmentStatus) {
 }
 
 export default function TeacherDemo() {
-  const { state, addModule, updateModule, addMoment, saveAssignmentFeedback } = useDemo();
+  const { state, addModule, updateModule, addMoment, saveAssignmentFeedback, setAssignmentStatus, setModulePublished, archiveModule, moveAssignment } = useDemo();
   const [tab, setTab] = useState<Tab>("overzicht");
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [moduleMessage, setModuleMessage] = useState("");
@@ -31,16 +31,28 @@ export default function TeacherDemo() {
   const [feedbackAssignment, setFeedbackAssignment] = useState("DESTEP-analyse");
   const [feedbackClass, setFeedbackClass] = useState(demoClasses[0]);
   const [feedbackMessages, setFeedbackMessages] = useState<Record<string, string>>({});
+  const [overviewClass, setOverviewClass] = useState("Alle klassen");
+  const [overviewModuleId, setOverviewModuleId] = useState("");
+  const [overviewAssignment, setOverviewAssignment] = useState("");
+  const [overviewStatus, setOverviewStatus] = useState("Alle statussen");
 
   const editingModule = state.modules.find((module) => module.id === editingModuleId);
   const feedbackModule = state.modules.find((module) => module.id === feedbackModuleId) ?? state.modules[0];
   const moduleAssignments = feedbackModule?.assignments ?? [];
   const classStudents = demoStudents.filter((student) => demoStudentClasses[student] === feedbackClass);
+  const activeModules = state.modules.filter((module) => !module.archived);
+  const overviewModule = state.modules.find((module) => module.id === overviewModuleId);
+  const overviewAssignments = overviewModule?.assignments ?? [...new Set(activeModules.flatMap((module) => module.assignments))];
+  const overviewStudents = demoStudents.filter((student) => {
+    if (overviewClass !== "Alle klassen" && demoStudentClasses[student] !== overviewClass) return false;
+    const status = overviewAssignment ? state.assignmentProgress[student]?.[overviewAssignment] ?? "Nog niet gestart" : state.studentStatus[student];
+    return overviewStatus === "Alle statussen" || status === overviewStatus;
+  });
 
   function openFeedback(student: string) {
-    const currentModule = state.modules[0];
+    const currentModule = overviewModule ?? activeModules[0];
     setFeedbackModuleId(currentModule?.id ?? "");
-    setFeedbackAssignment(currentModule?.assignments[0] ?? "");
+    setFeedbackAssignment(overviewAssignment || currentModule?.assignments[0] || "");
     setFeedbackClass(demoStudentClasses[student] ?? demoClasses[0]);
     setTab("feedback");
     setFeedbackMessages({});
@@ -66,6 +78,9 @@ export default function TeacherDemo() {
       description: String(form.get("description")),
       period: String(form.get("period")),
       assignments: String(form.get("assignments")).split(",").map((item) => item.trim()).filter(Boolean),
+      published: form.get("published") === "on",
+      archived: editingModule?.archived ?? false,
+      cohorts: form.getAll("cohorts").map(String),
     };
     if (editingModule) {
       updateModule(editingModule.id, moduleData);
@@ -84,7 +99,7 @@ export default function TeacherDemo() {
     saveAssignmentFeedback({
       student,
       assignment: feedbackAssignment,
-      status: String(form.get("status")) as DemoAssignmentStatus,
+      status: "Feedback ontvangen",
       feedback: String(form.get("feedback")),
       nextStep: String(form.get("nextStep")),
     });
@@ -107,29 +122,39 @@ export default function TeacherDemo() {
       </div>
 
       {tab === "overzicht" && (
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <div className="space-y-5">
+          <section className="card p-5">
+            <div><p className="text-xs font-bold uppercase tracking-wide text-teal-700">Gericht overzicht</p><h2 className="mt-1 text-xl font-black">Filter studenten die aandacht nodig hebben</h2></div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="text-sm font-bold">Klas<select className="field mt-1" value={overviewClass} onChange={(event) => setOverviewClass(event.target.value)}><option>Alle klassen</option>{demoClasses.map((className) => <option key={className}>{className}</option>)}</select></label>
+              <label className="text-sm font-bold">Module<select className="field mt-1" value={overviewModuleId} onChange={(event) => { const selected = state.modules.find((item) => item.id === event.target.value); setOverviewModuleId(event.target.value); setOverviewAssignment(selected?.assignments[0] ?? ""); }}><option value="">Alle modules</option>{activeModules.map((module) => <option value={module.id} key={module.id}>{module.title}</option>)}</select></label>
+              <label className="text-sm font-bold">Opdracht<select className="field mt-1" value={overviewAssignment} onChange={(event) => setOverviewAssignment(event.target.value)}><option value="">Alle opdrachten</option>{overviewAssignments.map((assignment) => <option key={assignment}>{assignment}</option>)}</select></label>
+              <label className="text-sm font-bold">Status<select className="field mt-1" value={overviewStatus} onChange={(event) => setOverviewStatus(event.target.value)}><option>Alle statussen</option>{overviewAssignment ? demoAssignmentStatuses.map((status) => <option key={status}>{status}</option>) : [...new Set(Object.values(state.studentStatus))].map((status) => <option key={status}>{status}</option>)}</select></label>
+            </div>
+            <p className="mt-3 text-sm font-semibold text-slate-600">{overviewStudents.length} studenten gevonden{overviewAssignment ? ` voor ${overviewAssignment}` : ""}.</p>
+          </section>
+
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
             <table className="w-full min-w-[650px] text-left text-sm">
-              <thead className="bg-slate-50"><tr><th className="p-4">Student</th><th className="p-4">Signaal</th><th className="p-4">Actie</th></tr></thead>
+              <thead className="bg-slate-50"><tr><th className="p-4">Student</th><th className="p-4">Klas</th><th className="p-4">{overviewAssignment ? "Opdrachtstatus" : "Signaal"}</th><th className="p-4">Actie</th></tr></thead>
               <tbody className="divide-y divide-slate-200">
-                {demoStudents.map((name) => (
+                {overviewStudents.map((name) => {
+                  const status = overviewAssignment ? state.assignmentProgress[name]?.[overviewAssignment] ?? "Nog niet gestart" : state.studentStatus[name];
+                  return (
                   <tr key={name}>
                     <td className="p-4 font-black">{name}</td>
-                    <td className="p-4"><span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-bold text-amber-950">{state.studentStatus[name]}</span></td>
+                    <td className="p-4 text-slate-600">{demoStudentClasses[name]}</td>
+                    <td className="p-4">{overviewAssignment ? <select aria-label={`Status van ${name}`} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold" value={status} onChange={(event) => setAssignmentStatus(name, overviewAssignment, event.target.value as DemoAssignmentStatus)}>{demoAssignmentStatuses.map((item) => <option key={item}>{item}</option>)}</select> : <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-bold text-amber-950">{status}</span>}</td>
                     <td className="p-4"><button onClick={() => openFeedback(name)} className="font-bold text-teal-700 underline">Feedback geven</button></td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
+            </div>
+            <section className="card h-fit p-5"><h2 className="font-black">Zo werkt opdrachtfeedback</h2><ol className="mt-3 space-y-3 text-sm text-slate-700"><li><strong>1.</strong> Kies eerst de module en opdracht.</li><li><strong>2.</strong> Filter daarna op klas of status.</li><li><strong>3.</strong> Pas een status direct aan of geef persoonlijke feedback.</li></ol></section>
           </div>
-          <section className="card h-fit p-5">
-            <h2 className="font-black">Zo werkt opdrachtfeedback</h2>
-            <ol className="mt-3 space-y-3 text-sm text-slate-700">
-              <li><strong>1.</strong> Kies eerst de module en opdracht.</li>
-              <li><strong>2.</strong> Filter daarna op klas.</li>
-              <li><strong>3.</strong> Geef de studenten onder elkaar individuele feedback.</li>
-            </ol>
-          </section>
         </div>
       )}
 
@@ -160,8 +185,8 @@ export default function TeacherDemo() {
                       <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Student {index + 1} van {classStudents.length}</p><h3 className="mt-1 text-lg font-black">{student}</h3></div>
                       <span className={`rounded-full px-2 py-1 text-xs font-bold ${statusColor(currentStatus)}`}>{currentStatus}</span>
                     </div>
-                    <div className="mt-4 grid gap-4 lg:grid-cols-[.65fr_1fr_1fr]">
-                      <label className="text-sm font-bold">Status<select className="field mt-1" name="status" defaultValue={currentStatus}>{demoAssignmentStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+                    <div className="mt-3 rounded-xl bg-fuchsia-50 px-3 py-2 text-sm font-semibold text-fuchsia-900">Na opslaan wordt de status automatisch <strong>Feedback ontvangen</strong>.</div>
+                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
                       <label className="text-sm font-bold">Wat gaat al goed?<textarea className="field mt-1 min-h-24" name="feedback" required /></label>
                       <label className="text-sm font-bold">Volgende stap<textarea className="field mt-1 min-h-24" name="nextStep" required /></label>
                     </div>
@@ -186,6 +211,8 @@ export default function TeacherDemo() {
             <label className="block text-sm font-bold">Titel<input className="field mt-1" name="title" defaultValue={editingModule?.title} required /></label>
             <label className="block text-sm font-bold">Beschrijving<textarea className="field mt-1" name="description" defaultValue={editingModule?.description} /></label>
             <label className="block text-sm font-bold">Periode<input className="field mt-1" name="period" defaultValue={editingModule?.period} placeholder="Periode 3" /></label>
+            <label className="flex items-center gap-2 text-sm font-bold"><input className="size-4 accent-teal-700" type="checkbox" name="published" defaultChecked={editingModule?.published ?? true} />Direct zichtbaar voor studenten</label>
+            <fieldset><legend className="text-sm font-bold">Beschikbaar voor klassen</legend><div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-3">{demoClasses.map((className) => <label className="flex items-center gap-2 text-sm" key={className}><input type="checkbox" className="size-4 accent-teal-700" name="cohorts" value={className} defaultChecked={editingModule ? editingModule.cohorts.includes(className) : true} />{className}</label>)}</div></fieldset>
             <label className="block text-sm font-bold">Opdrachten <span className="font-normal text-slate-500">(gescheiden door kommaâ€™s)</span><input className="field mt-1" name="assignments" defaultValue={editingModule?.assignments.join(", ")} /></label>
             {moduleMessage && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">{moduleMessage}</p>}
             <div className="flex flex-wrap gap-2">
@@ -194,12 +221,12 @@ export default function TeacherDemo() {
             </div>
           </form>
           <section>
-            <h2 className="mb-4 text-xl font-black">Modules</h2>
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2"><div><h2 className="text-xl font-black">Modules</h2><p className="text-sm text-slate-600">Beheer zichtbaarheid, volgorde en klassen.</p></div><span className="text-sm font-bold text-slate-500">{state.modules.filter((module) => module.archived).length} gearchiveerd</span></div>
             <div className="space-y-3">
               {state.modules.map((module) => (
-                <article className="card flex flex-wrap items-start justify-between gap-4 p-5" key={module.id}>
-                  <div><p className="text-xs font-bold uppercase text-teal-700">{module.period || "Doorlopend"}</p><h3 className="mt-1 font-black">{module.title}</h3><p className="mt-1 text-sm text-slate-600">{module.description}</p><p className="mt-3 text-sm font-bold">{module.assignments.length} opdrachten</p></div>
-                  <button onClick={() => { setEditingModuleId(module.id); setModuleMessage(""); }} className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900"><Pencil className="size-4" aria-hidden />Aanpassen</button>
+                <article className={`card p-5 ${module.archived ? "opacity-65" : ""}`} key={module.id}>
+                  <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap gap-2"><span className="text-xs font-bold uppercase text-teal-700">{module.period || "Doorlopend"}</span><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${module.archived ? "bg-slate-100 text-slate-600" : module.published ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>{module.archived ? "Gearchiveerd" : module.published ? "Zichtbaar" : "Concept"}</span></div><h3 className="mt-1 font-black">{module.title}</h3><p className="mt-1 text-sm text-slate-600">{module.description}</p><p className="mt-2 text-xs font-semibold text-slate-500">{module.cohorts.length ? module.cohorts.join(" Â· ") : "Nog niet aan een klas gekoppeld"}</p></div><div className="flex flex-wrap gap-2"><button onClick={() => setModulePublished(module.id, !module.published)} disabled={module.archived} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold disabled:opacity-40">{module.published ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}{module.published ? "Verbergen" : "Publiceren"}</button><button onClick={() => { setEditingModuleId(module.id); setModuleMessage(""); }} disabled={module.archived} className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900 disabled:opacity-40"><Pencil className="size-4" aria-hidden />Aanpassen</button><button onClick={() => archiveModule(module.id)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold"><Archive className="size-4" aria-hidden />{module.archived ? "Herstellen" : "Archiveren"}</button></div></div>
+                  {!module.archived && <div className="mt-4 border-t border-slate-100 pt-4"><p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Opdrachten in volgorde</p>{module.assignments.length ? <ol className="space-y-2">{module.assignments.map((assignment, index) => <li className="flex items-center gap-3 rounded-xl bg-slate-50 p-2.5 text-sm" key={assignment}><span className="grid size-7 shrink-0 place-items-center rounded-full bg-white text-xs font-black text-teal-800">{index + 1}</span><span className="min-w-0 flex-1 font-semibold">{assignment}</span><button aria-label={`${assignment} omhoog`} disabled={index === 0} onClick={() => moveAssignment(module.id, assignment, -1)} className="rounded-lg border border-slate-200 bg-white p-1.5 disabled:opacity-30"><ArrowUp className="size-4" aria-hidden /></button><button aria-label={`${assignment} omlaag`} disabled={index === module.assignments.length - 1} onClick={() => moveAssignment(module.id, assignment, 1)} className="rounded-lg border border-slate-200 bg-white p-1.5 disabled:opacity-30"><ArrowDown className="size-4" aria-hidden /></button></li>)}</ol> : <p className="text-sm text-slate-500">Nog geen opdrachten toegevoegd.</p>}</div>}
                 </article>
               ))}
             </div>
