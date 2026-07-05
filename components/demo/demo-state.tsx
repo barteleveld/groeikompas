@@ -95,7 +95,7 @@ const initial: DemoState = {
     nextStep: "Leg per trend uit wat deze concreet betekent voor de organisatie.",
     createdAt: "Vandaag",
   }],
-  assignmentSubmissions: { "DESTEP-analyse": ["DESTEP-analyse â€“ versie 1.pdf"] },
+  assignmentSubmissions: { "DESTEP-analyse": ["DESTEP-analyse – versie 1.pdf"] },
   goalCatalog: initialGoalCatalog,
   learningGoals: {
     "DESTEP-analyse": ["Trends onderzoeken", "Betrouwbare bronnen gebruiken"],
@@ -239,4 +239,3 @@ export function useDemo() {
   if (!value) throw new Error("DemoStateProvider ontbreekt");
   return value;
 }
-
