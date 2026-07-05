@@ -3,6 +3,14 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export const demoStudents = ["Lina Bakker", "Sem de Jong", "Yara Smit", "Omar Aydin", "Fleur Visser"];
+export const demoClasses = ["Marketing & Communicatie 4A", "Marketing & Communicatie 4B"];
+export const demoStudentClasses: Record<string, string> = {
+  "Lina Bakker": "Marketing & Communicatie 4A",
+  "Sem de Jong": "Marketing & Communicatie 4A",
+  "Yara Smit": "Marketing & Communicatie 4A",
+  "Omar Aydin": "Marketing & Communicatie 4B",
+  "Fleur Visser": "Marketing & Communicatie 4B",
+};
 export const demoAssignmentStatuses = ["Nog niet gestart", "Bezig", "Ingeleverd", "Feedback ontvangen", "Afgerond"] as const;
 export type DemoAssignmentStatus = (typeof demoAssignmentStatuses)[number];
 export type DemoModule = { id: string; title: string; description: string; period: string; assignments: string[] };
