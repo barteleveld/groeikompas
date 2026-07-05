@@ -12,7 +12,7 @@ import {
   useDemo,
 } from "@/components/demo/demo-state";
 
-type Tab = "overzicht" | "feedback" | "modules" | "planning";
+type Tab = "overzicht" | "feedback" | "assignments" | "modules" | "planning";
 
 function statusColor(status: DemoAssignmentStatus) {
   if (status === "Afgerond") return "bg-emerald-50 text-emerald-900";
@@ -23,7 +23,7 @@ function statusColor(status: DemoAssignmentStatus) {
 }
 
 export default function TeacherDemo() {
-  const { state, addModule, updateModule, addMoment, saveAssignmentFeedback, setAssignmentStatus, setModulePublished, archiveModule, moveAssignment } = useDemo();
+  const { state, addModule, updateModule, addMoment, saveAssignmentFeedback, setAssignmentStatus, setModulePublished, archiveModule, moveAssignment, updateAssignmentGoals } = useDemo();
   const [tab, setTab] = useState<Tab>("overzicht");
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [moduleMessage, setModuleMessage] = useState("");
@@ -31,10 +31,12 @@ export default function TeacherDemo() {
   const [feedbackAssignment, setFeedbackAssignment] = useState("DESTEP-analyse");
   const [feedbackClass, setFeedbackClass] = useState(demoClasses[0]);
   const [feedbackMessages, setFeedbackMessages] = useState<Record<string, string>>({});
+  const [assignmentMessages, setAssignmentMessages] = useState<Record<string, string>>({});
   const [overviewClass, setOverviewClass] = useState("Alle klassen");
   const [overviewModuleId, setOverviewModuleId] = useState("");
   const [overviewAssignment, setOverviewAssignment] = useState("");
   const [overviewStatus, setOverviewStatus] = useState("Alle statussen");
+  const [overviewGoal, setOverviewGoal] = useState("");
 
   const editingModule = state.modules.find((module) => module.id === editingModuleId);
   const feedbackModule = state.modules.find((module) => module.id === feedbackModuleId) ?? state.modules[0];
@@ -42,7 +44,9 @@ export default function TeacherDemo() {
   const classStudents = demoStudents.filter((student) => demoStudentClasses[student] === feedbackClass);
   const activeModules = state.modules.filter((module) => !module.archived);
   const overviewModule = state.modules.find((module) => module.id === overviewModuleId);
-  const overviewAssignments = overviewModule?.assignments ?? [...new Set(activeModules.flatMap((module) => module.assignments))];
+  const allAssignments = [...new Set(activeModules.flatMap((module) => module.assignments))];
+  const overviewAssignments = (overviewModule?.assignments ?? allAssignments).filter((assignment) => !overviewGoal || state.learningGoals[assignment]?.includes(overviewGoal));
+  const assignmentModules = allAssignments.map((assignment) => ({ assignment, module: activeModules.find((module) => module.assignments.includes(assignment)) }));
   const overviewStudents = demoStudents.filter((student) => {
     if (overviewClass !== "Alle klassen" && demoStudentClasses[student] !== overviewClass) return false;
     const status = overviewAssignment ? state.assignmentProgress[student]?.[overviewAssignment] ?? "Nog niet gestart" : state.studentStatus[student];
@@ -114,6 +118,7 @@ export default function TeacherDemo() {
         {([
           ["overzicht", "Voortgang"],
           ["feedback", "Feedback op opdracht"],
+          ["assignments", "Opdrachten"],
           ["modules", "Modules"],
           ["planning", "Feedback plannen"],
         ] as [Tab, string][]).map(([id, label]) => (
@@ -125,10 +130,11 @@ export default function TeacherDemo() {
         <div className="space-y-5">
           <section className="card p-5">
             <div><p className="text-xs font-bold uppercase tracking-wide text-teal-700">Gericht overzicht</p><h2 className="mt-1 text-xl font-black">Filter studenten die aandacht nodig hebben</h2></div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <label className="text-sm font-bold">Klas<select className="field mt-1" value={overviewClass} onChange={(event) => setOverviewClass(event.target.value)}><option>Alle klassen</option>{demoClasses.map((className) => <option key={className}>{className}</option>)}</select></label>
               <label className="text-sm font-bold">Module<select className="field mt-1" value={overviewModuleId} onChange={(event) => { const selected = state.modules.find((item) => item.id === event.target.value); setOverviewModuleId(event.target.value); setOverviewAssignment(selected?.assignments[0] ?? ""); }}><option value="">Alle modules</option>{activeModules.map((module) => <option value={module.id} key={module.id}>{module.title}</option>)}</select></label>
               <label className="text-sm font-bold">Opdracht<select className="field mt-1" value={overviewAssignment} onChange={(event) => setOverviewAssignment(event.target.value)}><option value="">Alle opdrachten</option>{overviewAssignments.map((assignment) => <option key={assignment}>{assignment}</option>)}</select></label>
+              <label className="text-sm font-bold">Leerdoel<select className="field mt-1" value={overviewGoal} onChange={(event) => { const goal = event.target.value; setOverviewGoal(goal); const available = (overviewModule?.assignments ?? allAssignments).filter((assignment) => !goal || state.learningGoals[assignment]?.includes(goal)); if (overviewAssignment && !available.includes(overviewAssignment)) setOverviewAssignment(available[0] ?? ""); }}><option value="">Alle leerdoelen</option>{state.goalCatalog.map((goal) => <option key={goal.id} value={goal.title}>{goal.title}</option>)}</select></label>
               <label className="text-sm font-bold">Status<select className="field mt-1" value={overviewStatus} onChange={(event) => setOverviewStatus(event.target.value)}><option>Alle statussen</option>{overviewAssignment ? demoAssignmentStatuses.map((status) => <option key={status}>{status}</option>) : [...new Set(Object.values(state.studentStatus))].map((status) => <option key={status}>{status}</option>)}</select></label>
             </div>
             <p className="mt-3 text-sm font-semibold text-slate-600">{overviewStudents.length} studenten gevonden{overviewAssignment ? ` voor ${overviewAssignment}` : ""}.</p>
@@ -171,7 +177,7 @@ export default function TeacherDemo() {
           </div>
 
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-            <div><p className="text-sm font-bold uppercase tracking-wider text-teal-700">{feedbackModule?.title}</p><h2 className="text-2xl font-black">{feedbackAssignment || "Nog geen opdracht"}</h2></div>
+            <div><p className="text-sm font-bold uppercase tracking-wider text-teal-700">{feedbackModule?.title}</p><h2 className="text-2xl font-black">{feedbackAssignment || "Nog geen opdracht"}</h2>{feedbackAssignment && <div className="mt-2 flex flex-wrap gap-2">{(state.learningGoals[feedbackAssignment] ?? []).map((goal) => <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-900" key={goal}>{goal}</span>)}</div>}</div>
             <p className="text-sm font-bold text-slate-600">{feedbackClass} Â· {classStudents.length} studenten</p>
           </div>
 
@@ -201,6 +207,34 @@ export default function TeacherDemo() {
           ) : (
             <p className="card p-5 text-slate-600">Deze module bevat nog geen opdrachten. Voeg eerst een opdracht toe via Modules.</p>
           )}
+        </section>
+      )}
+
+      {tab === "assignments" && (
+        <section className="space-y-5">
+          <div className="card p-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Opdrachten beheren</p>
+            <h2 className="mt-1 text-xl font-black">Leerdoelen aan opdrachten koppelen</h2>
+            <p className="mt-1 text-sm text-slate-600">Open een opdracht, vink de passende leerdoelen aan en sla de koppeling op. Studenten zien deze doelen direct bij de opdracht.</p>
+          </div>
+          <div className="space-y-3">
+            {assignmentModules.map(({ assignment, module }) => {
+              const selectedGoals = state.learningGoals[assignment] ?? [];
+              return (
+                <details className="group card overflow-hidden" key={assignment}>
+                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
+                    <div><p className="font-black">{assignment}</p><p className="mt-1 text-sm text-slate-500">{module?.title ?? "Zonder module"} Â· {selectedGoals.length} leerdoelen gekoppeld</p></div>
+                    <span className="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900 group-open:hidden">Aanpassen</span>
+                  </summary>
+                  <form className="border-t border-slate-200 p-5" onSubmit={(event) => { event.preventDefault(); const goals = new FormData(event.currentTarget).getAll("goals").map(String); updateAssignmentGoals(assignment, goals); setAssignmentMessages((current) => ({ ...current, [assignment]: "Leerdoelen opgeslagen. Studenten zien de wijziging direct." })); }}>
+                    <fieldset><legend className="font-black">Kies leerdoelen</legend><div className="mt-3 grid gap-3 md:grid-cols-2">{state.goalCatalog.map((goal) => <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3" key={goal.id}><input className="mt-1 size-4 accent-teal-700" type="checkbox" name="goals" value={goal.title} defaultChecked={selectedGoals.includes(goal.title)} /><span><span className="block text-sm font-bold">{goal.title}</span><span className="mt-0.5 block text-xs text-slate-500">{goal.domain} Â· {goal.description}</span></span></label>)}</div></fieldset>
+                    {!selectedGoals.length && <p className="mt-3 text-sm font-semibold text-amber-800">Aan deze opdracht zijn nog geen leerdoelen gekoppeld.</p>}
+                    <div className="mt-4 flex flex-wrap items-center gap-3"><button className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 font-bold text-white"><Save className="size-4" aria-hidden />Leerdoelen opslaan</button>{assignmentMessages[assignment] && <p role="status" className="text-sm font-bold text-emerald-800">{assignmentMessages[assignment]}</p>}</div>
+                  </form>
+                </details>
+              );
+            })}
+          </div>
         </section>
       )}
 
