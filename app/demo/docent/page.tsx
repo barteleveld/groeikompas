@@ -94,7 +94,7 @@ export default function TeacherDemo() {
 
   return (
     <>
-      <PageHeader eyebrow="Docentoverzicht" title="Wie heeft nu wat nodig?" description="Probeer alles uit. Je wijzigingen blijven bewaard op deze computer." />
+      <PageHeader eyebrow="Docentoverzicht" title="Wie heeft nu wat nodig?" description="Volg de voortgang per klas, geef gerichte feedback en plan de volgende stap." />
       <div className="mb-6 flex flex-wrap gap-2">
         {([
           ["overzicht", "Voortgang"],
