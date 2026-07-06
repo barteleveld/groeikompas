@@ -18,6 +18,15 @@ function assignmentAnchor(assignment: string) {
   return `opdracht-${assignment.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
 }
 
+function revealAssignmentFromHash() {
+  const id = decodeURIComponent(window.location.hash.slice(1));
+  const target = id ? document.getElementById(id) : null;
+  if (!target) return;
+  let current: HTMLElement | null = target;
+  while (current) { if (current.tagName === "DETAILS") (current as HTMLDetailsElement).open = true; current = current.parentElement; }
+  requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+
 export default function StudentDemo() {
   const { state, respond, addSubmission, markRead } = useDemo();
   const [responses, setResponses] = useState<Record<string, string>>({});
@@ -37,16 +46,8 @@ export default function StudentDemo() {
   const feedbackItems = assignmentFeedback.filter((item) => !item.response).map((item) => ({ label: item.assignment, href: `#${assignmentAnchor(item.assignment)}`, meta: "Nog reageren" }));
 
   useEffect(() => {
-    function revealAssignment() {
-      const id = decodeURIComponent(window.location.hash.slice(1));
-      const target = id ? document.getElementById(id) : null;
-      if (!target) return;
-      let current: HTMLElement | null = target;
-      while (current) { if (current instanceof HTMLDetailsElement) current.open = true; current = current.parentElement; }
-      requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
-    }
-    window.addEventListener("hashchange", revealAssignment); revealAssignment();
-    return () => window.removeEventListener("hashchange", revealAssignment);
+    window.addEventListener("hashchange", revealAssignmentFromHash); revealAssignmentFromHash();
+    return () => window.removeEventListener("hashchange", revealAssignmentFromHash);
   }, []);
 
   return (
@@ -58,7 +59,7 @@ export default function StudentDemo() {
         action={<a href="#modules" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 text-sm font-bold text-white hover:bg-teal-800"><Layers3 className="size-4" aria-hidden />Mijn modules</a>}
       />
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" onClick={(event) => { if ((event.target as HTMLElement).closest('a[href^="#opdracht-"]')) requestAnimationFrame(revealAssignmentFromHash); }}>
         <SummaryCard icon={BookCheck} value={`${completedAssignments} van ${assignments.length}`} label="opdrachten afgerond" hint="Bekijk welke opdrachten klaar zijn." items={completedItems} emptyText="Je hebt nog geen opdrachten afgerond." />
         <SummaryCard icon={ClipboardList} value={String(activeAssignments)} label="opdrachten bezig" hint="Kies direct waar je mee verdergaat." items={activeItems} emptyText="Je hebt momenteel geen opdracht in uitvoering." />
         <SummaryCard icon={MessageSquareText} value={String(waitingForFeedback)} label="wacht op feedback" hint="Bekijk waarop je docent gaat reageren." items={waitingItems} emptyText="Er wachten nu geen opdrachten op feedback." />
