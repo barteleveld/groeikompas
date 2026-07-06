@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { hasSupabaseConfig } from "@/lib/supabase/config";
 import type { UserRole } from "@/types/domain";
 
 export const getCurrentProfile = cache(async () => {
@@ -17,6 +18,10 @@ export const getCurrentProfile = cache(async () => {
 });
 
 export async function requireRole(...roles: UserRole[]) {
+  if (!hasSupabaseConfig()) {
+    const role = roles[0];
+    redirect(role === "student" ? "/omgeving/student" : role === "teacher" ? "/omgeving/docent" : "/omgeving/beheer");
+  }
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   if (!roles.includes(profile.role)) redirect(roleHome(profile.role));
