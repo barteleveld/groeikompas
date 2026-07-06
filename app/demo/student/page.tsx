@@ -18,6 +18,22 @@ function assignmentAnchor(assignment: string) {
   return `opdracht-${assignment.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
 }
 
+const goalStatusStyles = {
+  "Nog niet zichtbaar": "border-slate-200 bg-slate-100 text-slate-700",
+  "In ontwikkeling": "border-blue-200 bg-blue-50 text-blue-800",
+  "Voldoende aangetoond": "border-emerald-200 bg-emerald-50 text-emerald-800",
+  "Sterk aangetoond": "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-900",
+} as const;
+
+type GoalStatus = keyof typeof goalStatusStyles;
+
+function goalStatus(statuses: string[]): GoalStatus {
+  if (!statuses.length || statuses.every((status) => status === "Nog niet gestart")) return "Nog niet zichtbaar";
+  if (statuses.every((status) => status === "Afgerond")) return "Sterk aangetoond";
+  if (statuses.some((status) => ["Feedback ontvangen", "Afgerond"].includes(status))) return "Voldoende aangetoond";
+  return "In ontwikkeling";
+}
+
 function revealAssignmentFromHash() {
   const id = decodeURIComponent(window.location.hash.slice(1));
   const target = id ? document.getElementById(id) : null;
@@ -44,6 +60,15 @@ export default function StudentDemo() {
   const activeItems = assignments.filter((assignment) => !["Nog niet gestart", "Afgerond"].includes(progress[assignment] ?? "Nog niet gestart")).map((assignment) => ({ label: assignment, href: `#${assignmentAnchor(assignment)}`, meta: progress[assignment] }));
   const waitingItems = assignments.filter((assignment) => progress[assignment] === "Ingeleverd").map((assignment) => ({ label: assignment, href: `#${assignmentAnchor(assignment)}`, meta: "Wacht op docent" }));
   const feedbackItems = assignmentFeedback.filter((item) => !item.response).map((item) => ({ label: item.assignment, href: `#${assignmentAnchor(item.assignment)}`, meta: "Nog reageren" }));
+  const learningGoalOverview = state.goalCatalog.filter((goal) => !goal.archived).map((goal) => {
+    const linkedAssignments = assignments.filter((assignment) => state.learningGoals[assignment]?.includes(goal.title));
+    const status = goalStatus(linkedAssignments.map((assignment) => progress[assignment] ?? "Nog niet gestart"));
+    const links = linkedAssignments.map((assignment) => ({ assignment, module: visibleModules.find((module) => module.assignments.includes(assignment)) }));
+    return { ...goal, status, links };
+  });
+  const goalStatusCounts = learningGoalOverview.reduce<Record<GoalStatus, number>>((counts, goal) => ({ ...counts, [goal.status]: counts[goal.status] + 1 }), { "Nog niet zichtbaar": 0, "In ontwikkeling": 0, "Voldoende aangetoond": 0, "Sterk aangetoond": 0 });
+  const demonstratedGoals = goalStatusCounts["Voldoende aangetoond"] + goalStatusCounts["Sterk aangetoond"];
+  const goalProgress = learningGoalOverview.length ? Math.round(learningGoalOverview.reduce((total, goal) => total + ({ "Nog niet zichtbaar": 0, "In ontwikkeling": 35, "Voldoende aangetoond": 70, "Sterk aangetoond": 100 }[goal.status]), 0) / learningGoalOverview.length) : 0;
 
   useEffect(() => {
     window.addEventListener("hashchange", revealAssignmentFromHash); revealAssignmentFromHash();
@@ -56,8 +81,36 @@ export default function StudentDemo() {
         eyebrow="Mijn ontwikkeling"
         title="Hoi Lina"
         description="Waar werk je naartoe, waar sta je nu en wat wordt je volgende stap?"
-        action={<a href="#modules" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 text-sm font-bold text-white hover:bg-teal-800"><Layers3 className="size-4" aria-hidden />Mijn modules</a>}
       />
+
+      <details className="group mb-6 overflow-hidden rounded-3xl border-2 border-fuchsia-700/25 bg-white shadow-lg shadow-fuchsia-950/10">
+        <summary className="cursor-pointer list-none bg-gradient-to-br from-fuchsia-50 via-white to-orange-50 p-5 marker:content-none sm:p-6 [&::-webkit-details-marker]:hidden">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-700 to-orange-500 text-white shadow-sm"><Target className="size-6" aria-hidden /></span>
+              <div><p className="text-xs font-bold uppercase tracking-wider text-fuchsia-800">Jouw ontwikkeling</p><h2 className="mt-1 text-xl font-black">Mijn leerdoelen</h2><p className="mt-1 text-sm text-slate-600">{demonstratedGoals} van {learningGoalOverview.length} leerdoelen minimaal voldoende aangetoond</p></div>
+            </div>
+            <div className="flex items-center gap-4 lg:min-w-80">
+              <div className="min-w-0 flex-1"><div className="mb-1.5 flex justify-between text-xs font-bold"><span>Ontwikkeling leerdoelen</span><span>{goalProgress}%</span></div><div className="h-3 overflow-hidden rounded-full bg-white ring-1 ring-slate-200"><div className="h-full rounded-full bg-gradient-to-r from-blue-500 via-emerald-500 to-fuchsia-600" style={{ width: `${goalProgress}%` }} /></div></div>
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white text-fuchsia-800 shadow-sm transition-transform group-open:rotate-180"><ChevronDown className="size-5" aria-hidden /></span>
+            </div>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {(Object.entries(goalStatusCounts) as [GoalStatus, number][]).map(([status, count]) => <div className={`rounded-xl border px-3 py-2 ${goalStatusStyles[status]}`} key={status}><span className="block text-xl font-black">{count}</span><span className="text-xs font-bold">{status}</span></div>)}
+          </div>
+        </summary>
+
+        <div className="border-t-2 border-fuchsia-700/15 bg-fuchsia-950/[0.025] p-4 sm:p-6">
+          <p className="mb-4 text-sm font-semibold text-slate-600">Open via een opdracht de plek waar je aan dit leerdoel werkt.</p>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {learningGoalOverview.map((goal) => <article className="rounded-2xl border-2 border-slate-200 bg-white p-4 shadow-sm" key={goal.id}>
+              <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{goal.domain}</p><h3 className="mt-1 font-black text-slate-950">{goal.title}</h3></div><span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${goalStatusStyles[goal.status]}`}>{goal.status}</span></div>
+              <p className="mt-2 text-sm text-slate-600">{goal.description}</p>
+              {goal.links.length ? <div className="mt-4 space-y-2">{goal.links.map(({ assignment, module }) => <a href={`#${assignmentAnchor(assignment)}`} onClick={() => requestAnimationFrame(revealAssignmentFromHash)} className="flex items-center justify-between gap-3 rounded-xl border border-teal-200 bg-teal-50/60 px-3 py-2.5 text-sm transition hover:border-teal-400 hover:bg-teal-50" key={assignment}><span><strong className="block text-slate-900">{assignment}</strong><span className="text-xs text-slate-600">Module: {module?.title ?? "Niet ingedeeld"}</span></span><span className="shrink-0 font-bold text-teal-800">Open →</span></a>)}</div> : <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-500">Nog niet gekoppeld aan een module of opdracht.</p>}
+            </article>)}
+          </div>
+        </div>
+      </details>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" onClick={(event) => { if ((event.target as HTMLElement).closest('a[href^="#opdracht-"]')) requestAnimationFrame(revealAssignmentFromHash); }}>
         <SummaryCard icon={BookCheck} value={`${completedAssignments} van ${assignments.length}`} label="opdrachten afgerond" hint="Bekijk welke opdrachten klaar zijn." items={completedItems} emptyText="Je hebt nog geen opdrachten afgerond." />
@@ -66,15 +119,15 @@ export default function StudentDemo() {
         <SummaryCard icon={Target} value={String(feedbackToProcess)} label="feedback te verwerken" hint="Ga direct naar de feedback waarop je moet reageren." items={feedbackItems} emptyText="Je hebt alle ontvangen feedback verwerkt." />
       </section>
 
-      <section id="modules" className="mt-8 scroll-mt-6">
-        <div className="mb-4">
+      <section id="modules" className="mt-8 scroll-mt-6 rounded-[2rem] border-2 border-teal-700/25 bg-gradient-to-br from-teal-50 via-white to-rose-50 p-4 shadow-lg shadow-teal-950/10 sm:p-6">
+        <div className="mb-5 px-1">
           <p className="text-sm font-bold uppercase tracking-wider text-teal-700">Mijn opleiding</p>
           <h2 className="mt-1 text-2xl font-black">Mijn modules</h2>
           <p className="mt-1 text-sm text-slate-600">Open een opdracht voor leerdoelen, feedback, reacties en ingeleverde versies.</p>
         </div>
 
-        <details className="group overflow-hidden rounded-3xl border border-rose-100 bg-white shadow-sm shadow-rose-950/5">
-          <summary data-testid="modules-summary" className="flex cursor-pointer list-none flex-col gap-5 p-5 marker:content-none sm:p-6 lg:flex-row lg:items-center lg:justify-between [&::-webkit-details-marker]:hidden">
+        <details className="group overflow-hidden rounded-3xl border-2 border-teal-700/30 bg-white shadow-md shadow-teal-950/10">
+          <summary data-testid="modules-summary" className="flex cursor-pointer list-none flex-col gap-5 bg-gradient-to-r from-white via-teal-50/70 to-indigo-50 p-5 marker:content-none sm:p-6 lg:flex-row lg:items-center lg:justify-between [&::-webkit-details-marker]:hidden">
             <div className="flex min-w-0 items-start gap-4">
               <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-teal-600 to-indigo-500 text-white shadow-sm"><Layers3 className="size-6" aria-hidden /></span>
               <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wider text-teal-700">Totaaloverzicht</p><h3 className="mt-1 text-xl font-black">{visibleModules.length} modules · {assignments.length} opdrachten</h3><p className="mt-1 text-sm text-slate-600">{completedAssignments} afgerond, {activeAssignments} bezig en {assignments.length - completedAssignments - activeAssignments} nog te starten</p></div>
@@ -85,7 +138,7 @@ export default function StudentDemo() {
             </div>
           </summary>
 
-          <div className="border-t border-rose-100 bg-[#fffaf8] p-4 sm:p-6">
+          <div className="border-t-2 border-teal-700/20 bg-teal-950/[0.035] p-4 sm:p-6">
             <p className="mb-4 text-sm font-semibold text-slate-600">Open een module en daarna een opdracht voor het volledige dossier.</p>
             <div className="space-y-4">
               {visibleModules.map((module) => {
@@ -93,13 +146,13 @@ export default function StudentDemo() {
                 const moduleActive = module.assignments.filter((assignment) => !["Nog niet gestart", "Afgerond"].includes(progress[assignment] ?? "Nog niet gestart")).length;
                 const moduleProgress = module.assignments.length ? Math.round((moduleCompleted / module.assignments.length) * 100) : 0;
                 return (
-                  <details className="group/module overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" key={module.id}>
-                    <summary data-testid={`module-summary-${module.id}`} className="flex cursor-pointer list-none flex-col gap-4 p-5 marker:content-none md:flex-row md:items-center md:justify-between [&::-webkit-details-marker]:hidden">
-                      <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wide text-teal-700">{module.period || "Doorlopend"}</p><h3 className="mt-1 text-lg font-black">{module.title}</h3><p className="mt-1 text-sm text-slate-600">{module.description || "Je docent heeft nog geen beschrijving toegevoegd."}</p></div>
+                  <details className="group/module overflow-hidden rounded-2xl border-2 border-indigo-200 bg-white shadow-md shadow-indigo-950/5 open:border-indigo-400 open:shadow-lg" key={module.id}>
+                    <summary data-testid={`module-summary-${module.id}`} className="flex cursor-pointer list-none flex-col gap-4 bg-indigo-50/70 p-5 marker:content-none transition-colors hover:bg-indigo-100/70 group-open/module:bg-indigo-100 md:flex-row md:items-center md:justify-between [&::-webkit-details-marker]:hidden">
+                      <div className="flex min-w-0 items-start gap-3"><span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-indigo-600 text-white"><Layers3 className="size-4" aria-hidden /></span><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wide text-indigo-700">{module.period || "Doorlopend"}</p><h3 className="mt-1 text-lg font-black text-slate-950">{module.title}</h3><p className="mt-1 text-sm text-slate-600">{module.description || "Je docent heeft nog geen beschrijving toegevoegd."}</p></div></div>
                       <div className="flex shrink-0 items-center gap-3"><div className="text-right"><p className="text-sm font-black">{moduleCompleted} van {module.assignments.length} klaar</p><p className="text-xs text-slate-500">{moduleActive ? `${moduleActive} bezig` : moduleCompleted === module.assignments.length && module.assignments.length ? "Module afgerond" : "Klaar om te starten"}</p></div><div className="grid size-11 place-items-center rounded-full bg-slate-100 text-sm font-black text-slate-700">{moduleProgress}%</div><ChevronDown className="size-5 text-slate-500 transition-transform group-open/module:rotate-180" aria-hidden /></div>
                     </summary>
 
-                    <div className="border-t border-slate-100 p-4 sm:p-5">
+                    <div className="border-t-2 border-indigo-200 bg-white p-4 sm:p-5">
                       {module.assignments.length ? <div className="space-y-3">{module.assignments.map((assignment, index) => {
                         const status = progress[assignment] ?? "Nog niet gestart";
                         const feedbackHistory = assignmentFeedback.filter((item) => item.assignment === assignment);
@@ -107,13 +160,13 @@ export default function StudentDemo() {
                         const submissions = state.assignmentSubmissions[assignment] ?? [];
                         const goals = state.learningGoals[assignment] ?? [];
                         return (
-                          <details id={assignmentAnchor(assignment)} className="group/assignment scroll-mt-6 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50" key={assignment}>
-                            <summary data-testid={`assignment-summary-${assignmentAnchor(assignment)}`} className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+                          <details id={assignmentAnchor(assignment)} className="group/assignment scroll-mt-6 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/70 open:border-amber-400 open:shadow-md" key={assignment}>
+                            <summary data-testid={`assignment-summary-${assignmentAnchor(assignment)}`} className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 p-4 transition-colors hover:bg-amber-100/70 group-open/assignment:bg-amber-100 [&::-webkit-details-marker]:hidden">
                               <div className="flex min-w-0 items-start gap-3"><span className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-black ${status === "Afgerond" ? "bg-emerald-100 text-emerald-800" : "bg-white text-slate-500 shadow-sm"}`}>{status === "Afgerond" ? <CheckCircle2 className="size-4" aria-hidden /> : index + 1}</span><div><p className="font-bold">{assignment}</p><p className="mt-1 text-xs text-slate-500">{goals.length} leerdoelen · {submissions.length} versies · {feedbackHistory.length} feedbackrondes</p>{latestFeedback && !latestFeedback.response && <p className="mt-1 text-xs font-semibold text-fuchsia-800">Feedback vraagt om een reactie</p>}</div></div>
                               <span className="flex items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${progressColor(status)}`}>{status}</span><ChevronDown className="size-4 text-slate-500 transition-transform group-open/assignment:rotate-180" aria-hidden /></span>
                             </summary>
 
-                            <div className="space-y-5 border-t border-slate-200 bg-white p-4 sm:p-5">
+                            <div className="space-y-5 border-t border-amber-200 bg-white p-4 sm:p-5">
                               <section><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Leerdoelen</p><div className="mt-2 flex flex-wrap gap-2">{goals.length ? goals.map((goal) => <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-900" key={goal}>{goal}</span>) : <span className="text-sm text-slate-500">Nog geen leerdoelen gekoppeld.</span>}</div></section>
 
                               <section>
@@ -146,3 +199,4 @@ export default function StudentDemo() {
     </>
   );
 }
+
