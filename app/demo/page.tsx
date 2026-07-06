@@ -3,9 +3,9 @@ import { ArrowRight, GraduationCap, School, Settings } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 
 const roles = [
-  { href: "/omgeving/student", icon: GraduationCap, title: "Studentenomgeving", text: "Bekijk opdrachten, leerdoelen, ontvangen feedback en je volgende stap.", color: "bg-teal-700" },
-  { href: "/omgeving/docent", icon: School, title: "Docentomgeving", text: "Volg klassen, geef opdrachtfeedback en beheer modules en planning.", color: "bg-indigo-700" },
-  { href: "/omgeving/beheer", icon: Settings, title: "Beheeromgeving", text: "Beheer gebruikers, klassen, modules, opdrachten en leerdoelen.", color: "bg-slate-800" },
+  { href: "/demo/student", icon: GraduationCap, title: "Studentenomgeving", text: "Bekijk opdrachten, leerdoelen, ontvangen feedback en je volgende stap.", color: "bg-teal-700" },
+  { href: "/demo/docent", icon: School, title: "Docentomgeving", text: "Volg klassen, geef opdrachtfeedback en beheer modules en planning.", color: "bg-indigo-700" },
+  { href: "/demo/beheer", icon: Settings, title: "Beheeromgeving", text: "Beheer gebruikers, klassen, modules, opdrachten en leerdoelen.", color: "bg-slate-800" },
 ];
 
 export default function EnvironmentHome() {
@@ -25,4 +25,3 @@ export default function EnvironmentHome() {
     </>
   );
 }
-
