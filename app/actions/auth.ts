@@ -32,3 +32,18 @@ export async function signOut() {
   await supabase.auth.signOut();
   redirect("/login");
 }
+
+export async function setPassword(_: AuthState, formData: FormData): Promise<AuthState> {
+  const password = String(formData.get("password") ?? "");
+  const confirmation = String(formData.get("confirmation") ?? "");
+  if (password.length < 10) return { error: "Kies een wachtwoord van minimaal 10 tekens." };
+  if (password !== confirmation) return { error: "De twee wachtwoorden zijn niet gelijk." };
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { error: "Het wachtwoord kon niet worden opgeslagen. Open de uitnodigingslink opnieuw." };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (!profile) redirect("/login");
+  redirect(roleHome(profile.role));
+}
