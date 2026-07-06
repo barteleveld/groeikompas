@@ -24,7 +24,7 @@ export type DemoModule = {
   cohorts: string[];
 };
 export type DemoMoment = { id: string; title: string; date: string; kind: string; cohort: string };
-export type DemoLearningGoal = { id: string; title: string; description: string; domain: string };
+export type DemoLearningGoal = { id: string; title: string; description: string; domain: string; archived: boolean };
 export type DemoAssignmentFeedback = {
   id: string;
   student: string;
@@ -40,13 +40,14 @@ type DemoNotification = { id: string; title: string; read: boolean; assignment?:
 type DemoState = {
   modules: DemoModule[];
   moments: DemoMoment[];
-  users: { id: string; name: string; role: string }[];
+  users: { id: string; name: string; role: string; active: boolean; cohort: string }[];
   studentStatus: Record<string, string>;
   assignmentProgress: Record<string, Record<string, DemoAssignmentStatus>>;
   assignmentFeedback: DemoAssignmentFeedback[];
   assignmentSubmissions: Record<string, string[]>;
   goalCatalog: DemoLearningGoal[];
   learningGoals: Record<string, string[]>;
+  archivedAssignments: string[];
   notifications: DemoNotification[];
 };
 
@@ -56,14 +57,14 @@ const initialModules: DemoModule[] = [
 ];
 
 const initialGoalCatalog: DemoLearningGoal[] = [
-  { id: "g1", title: "Trends onderzoeken", description: "Relevante ontwikkelingen herkennen en duiden.", domain: "Onderzoek" },
-  { id: "g2", title: "Betrouwbare bronnen gebruiken", description: "Bronnen selecteren en controleerbaar verwerken.", domain: "Onderzoek" },
-  { id: "g3", title: "Informatie analyseren", description: "Gegevens ordenen en betekenisvolle verbanden leggen.", domain: "Analyse" },
-  { id: "g4", title: "Sterktes en risico's afwegen", description: "Interne en externe factoren tegen elkaar afwegen.", domain: "Analyse" },
-  { id: "g5", title: "Doelgroepbehoeften herkennen", description: "Inzichten vertalen naar behoeften van de doelgroep.", domain: "Doelgroep" },
-  { id: "g6", title: "Advies helder visualiseren", description: "Een advies begrijpelijk en passend vormgeven.", domain: "Communicatie" },
-  { id: "g7", title: "Keuzes onderbouwen", description: "Keuzes uitleggen met argumenten en bewijs.", domain: "Advies" },
-  { id: "g8", title: "Professioneel presenteren", description: "Een overtuigend en doelgroepgericht verhaal presenteren.", domain: "Communicatie" },
+  { id: "g1", title: "Trends onderzoeken", description: "Relevante ontwikkelingen herkennen en duiden.", domain: "Onderzoek", archived: false },
+  { id: "g2", title: "Betrouwbare bronnen gebruiken", description: "Bronnen selecteren en controleerbaar verwerken.", domain: "Onderzoek", archived: false },
+  { id: "g3", title: "Informatie analyseren", description: "Gegevens ordenen en betekenisvolle verbanden leggen.", domain: "Analyse", archived: false },
+  { id: "g4", title: "Sterktes en risico's afwegen", description: "Interne en externe factoren tegen elkaar afwegen.", domain: "Analyse", archived: false },
+  { id: "g5", title: "Doelgroepbehoeften herkennen", description: "Inzichten vertalen naar behoeften van de doelgroep.", domain: "Doelgroep", archived: false },
+  { id: "g6", title: "Advies helder visualiseren", description: "Een advies begrijpelijk en passend vormgeven.", domain: "Communicatie", archived: false },
+  { id: "g7", title: "Keuzes onderbouwen", description: "Keuzes uitleggen met argumenten en bewijs.", domain: "Advies", archived: false },
+  { id: "g8", title: "Professioneel presenteren", description: "Een overtuigend en doelgroepgericht verhaal presenteren.", domain: "Communicatie", archived: false },
 ];
 
 function defaultProgress(modules: DemoModule[]) {
@@ -83,7 +84,7 @@ const initial: DemoState = {
     { id: "f1", title: "Snelle check DESTEP-bronnen", date: "8 juli, 10:00", kind: "Snelle check", cohort: demoClasses[0] },
     { id: "f2", title: "Peerfeedback adviesposter", date: "15 juli, 13:30", kind: "Feedback van medestudent", cohort: demoClasses[0] },
   ],
-  users: [...demoStudents.map((name, index) => ({ id: `u${index + 1}`, name, role: "Student" })), { id: "u6", name: "Noor van Dijk", role: "Docent" }],
+  users: [...demoStudents.map((name, index) => ({ id: `u${index + 1}`, name, role: "Student", active: true, cohort: demoStudentClasses[name] })), { id: "u6", name: "Noor van Dijk", role: "Docent", active: true, cohort: demoClasses[0] }],
   studentStatus: { "Lina Bakker": "Feedback verwerken", "Sem de Jong": "Wacht op feedback", "Yara Smit": "Niets ingeleverd", "Omar Aydin": "Op schema", "Fleur Visser": "Feedback verwerken" },
   assignmentProgress: defaultProgress(initialModules),
   assignmentFeedback: [{
@@ -104,6 +105,7 @@ const initial: DemoState = {
     "Adviesposter": ["Advies helder visualiseren"],
     "Adviespresentatie": ["Keuzes onderbouwen", "Professioneel presenteren"],
   },
+  archivedAssignments: [],
   notifications: [
     { id: "n1", title: "Nieuwe feedback op DESTEP-analyse", read: false, assignment: "DESTEP-analyse" },
     { id: "n2", title: "Feedbackmoment voor DESTEP-analyse gepland", read: false, assignment: "DESTEP-analyse" },
@@ -134,7 +136,8 @@ function normalizeState(candidate: LegacyState): DemoState {
     assignmentProgress,
     assignmentFeedback,
     assignmentSubmissions: candidate.assignmentSubmissions ?? { "DESTEP-analyse": candidate.submissions ?? initial.assignmentSubmissions["DESTEP-analyse"] },
-    goalCatalog: candidate.goalCatalog ?? initial.goalCatalog,
+    users: (candidate.users ?? initial.users).map((user) => ({ ...user, active: user.active ?? true, cohort: user.cohort ?? demoClasses[0] })),
+    goalCatalog: (candidate.goalCatalog ?? initial.goalCatalog).map((goal) => ({ ...goal, archived: goal.archived ?? false })),
     learningGoals: candidate.learningGoals ?? initial.learningGoals,
     notifications: (candidate.notifications ?? initial.notifications).map((notification) => ({ ...notification, assignment: notification.assignment ?? (notification.title.includes("DESTEP") ? "DESTEP-analyse" : undefined) })),
   };
@@ -155,8 +158,12 @@ type Ctx = {
   archiveModule: (id: string) => void;
   moveAssignment: (moduleId: string, assignment: string, direction: -1 | 1) => void;
   updateAssignmentGoals: (assignment: string, goals: string[]) => void;
-  addLearningGoal: (goal: Omit<DemoLearningGoal, "id">) => void;
-  updateLearningGoal: (id: string, goal: Omit<DemoLearningGoal, "id">) => void;
+  toggleAssignmentArchive: (assignment: string) => void;
+  addLearningGoal: (goal: Omit<DemoLearningGoal, "id" | "archived">) => void;
+  updateLearningGoal: (id: string, goal: Omit<DemoLearningGoal, "id" | "archived">) => void;
+  toggleLearningGoalArchive: (id: string) => void;
+  toggleUserActive: (id: string) => void;
+  updateUserCohort: (id: string, cohort: string) => void;
 };
 
 const DemoContext = createContext<Ctx | null>(null);
@@ -184,7 +191,7 @@ export function DemoStateProvider({ children }: { children: React.ReactNode }) {
     addModule: (module) => setState((current) => normalizeState({ ...current, modules: [...current.modules, { ...module, id: crypto.randomUUID() }] })),
     updateModule: (id, module) => setState((current) => normalizeState({ ...current, modules: current.modules.map((item) => item.id === id ? { ...module, id } : item) })),
     addMoment: (moment) => setState((current) => ({ ...current, moments: [...current.moments, { ...moment, id: crypto.randomUUID() }], notifications: [...current.notifications, { id: crypto.randomUUID(), title: `Feedbackmoment gepland: ${moment.title}`, read: false }] })),
-    addUser: (name, role) => setState((current) => ({ ...current, users: [...current.users, { id: crypto.randomUUID(), name, role }] })),
+    addUser: (name, role) => setState((current) => ({ ...current, users: [...current.users, { id: crypto.randomUUID(), name, role, active: true, cohort: demoClasses[0] }] })),
     setAssignmentStatus: (student, assignment, status) => setState((current) => ({ ...current, assignmentProgress: { ...current.assignmentProgress, [student]: { ...current.assignmentProgress[student], [assignment]: status } } })),
     saveAssignmentFeedback: (feedback) => setState((current) => ({
       ...current,
@@ -220,15 +227,19 @@ export function DemoStateProvider({ children }: { children: React.ReactNode }) {
       return { ...module, assignments };
     }) })),
     updateAssignmentGoals: (assignment, goals) => setState((current) => ({ ...current, learningGoals: { ...current.learningGoals, [assignment]: goals } })),
-    addLearningGoal: (goal) => setState((current) => ({ ...current, goalCatalog: [...current.goalCatalog, { ...goal, id: crypto.randomUUID() }] })),
+    toggleAssignmentArchive: (assignment) => setState((current) => ({ ...current, archivedAssignments: current.archivedAssignments.includes(assignment) ? current.archivedAssignments.filter((item) => item !== assignment) : [...current.archivedAssignments, assignment] })),
+    addLearningGoal: (goal) => setState((current) => ({ ...current, goalCatalog: [...current.goalCatalog, { ...goal, id: crypto.randomUUID(), archived: false }] })),
     updateLearningGoal: (id, goal) => setState((current) => {
       const previous = current.goalCatalog.find((item) => item.id === id);
       return {
         ...current,
-        goalCatalog: current.goalCatalog.map((item) => item.id === id ? { ...goal, id } : item),
+        goalCatalog: current.goalCatalog.map((item) => item.id === id ? { ...goal, id, archived: item.archived } : item),
         learningGoals: previous && previous.title !== goal.title ? Object.fromEntries(Object.entries(current.learningGoals).map(([assignment, goals]) => [assignment, goals.map((title) => title === previous.title ? goal.title : title)])) : current.learningGoals,
       };
     }),
+    toggleLearningGoalArchive: (id) => setState((current) => ({ ...current, goalCatalog: current.goalCatalog.map((goal) => goal.id === id ? { ...goal, archived: !goal.archived } : goal) })),
+    toggleUserActive: (id) => setState((current) => ({ ...current, users: current.users.map((user) => user.id === id ? { ...user, active: !user.active } : user) })),
+    updateUserCohort: (id, cohort) => setState((current) => ({ ...current, users: current.users.map((user) => user.id === id ? { ...user, cohort } : user) })),
   }), [state]);
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;

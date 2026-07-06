@@ -9,10 +9,11 @@ export const getCurrentProfile = cache(async () => {
   if (!user) return null;
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, full_name, role")
+    .select("id, full_name, role, is_active")
     .eq("id", user.id)
     .single();
-  return profile as { id: string; full_name: string; role: UserRole } | null;
+  if (!profile?.is_active) return null;
+  return profile as { id: string; full_name: string; role: UserRole; is_active: boolean } | null;
 });
 
 export async function requireRole(...roles: UserRole[]) {

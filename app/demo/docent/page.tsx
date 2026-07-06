@@ -23,7 +23,7 @@ function statusColor(status: DemoAssignmentStatus) {
 }
 
 export default function TeacherDemo() {
-  const { state, addModule, updateModule, addMoment, saveAssignmentFeedback, setAssignmentStatus, setModulePublished, archiveModule, moveAssignment, updateAssignmentGoals } = useDemo();
+  const { state, addModule, updateModule, addMoment, saveAssignmentFeedback, setAssignmentStatus, setModulePublished, archiveModule, moveAssignment, updateAssignmentGoals, toggleAssignmentArchive } = useDemo();
   const [tab, setTab] = useState<Tab>("overzicht");
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [moduleMessage, setModuleMessage] = useState("");
@@ -44,9 +44,10 @@ export default function TeacherDemo() {
   const classStudents = demoStudents.filter((student) => demoStudentClasses[student] === feedbackClass);
   const activeModules = state.modules.filter((module) => !module.archived);
   const overviewModule = state.modules.find((module) => module.id === overviewModuleId);
-  const allAssignments = [...new Set(activeModules.flatMap((module) => module.assignments))];
+  const allKnownAssignments = [...new Set(state.modules.flatMap((module) => module.assignments))];
+  const allAssignments = [...new Set(activeModules.flatMap((module) => module.assignments))].filter((assignment) => !state.archivedAssignments.includes(assignment));
   const overviewAssignments = (overviewModule?.assignments ?? allAssignments).filter((assignment) => !overviewGoal || state.learningGoals[assignment]?.includes(overviewGoal));
-  const assignmentModules = allAssignments.map((assignment) => ({ assignment, module: activeModules.find((module) => module.assignments.includes(assignment)) }));
+  const assignmentModules = allKnownAssignments.map((assignment) => ({ assignment, module: state.modules.find((module) => module.assignments.includes(assignment)) }));
   const overviewStudents = demoStudents.filter((student) => {
     if (overviewClass !== "Alle klassen" && demoStudentClasses[student] !== overviewClass) return false;
     const status = overviewAssignment ? state.assignmentProgress[student]?.[overviewAssignment] ?? "Nog niet gestart" : state.studentStatus[student];
@@ -220,16 +221,17 @@ export default function TeacherDemo() {
           <div className="space-y-3">
             {assignmentModules.map(({ assignment, module }) => {
               const selectedGoals = state.learningGoals[assignment] ?? [];
+              const archived = state.archivedAssignments.includes(assignment);
               return (
-                <details className="group card overflow-hidden" key={assignment}>
+                <details className={`group card overflow-hidden ${archived ? "opacity-70" : ""}`} key={assignment}>
                   <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
-                    <div><p className="font-black">{assignment}</p><p className="mt-1 text-sm text-slate-500">{module?.title ?? "Zonder module"} · {selectedGoals.length} leerdoelen gekoppeld</p></div>
-                    <span className="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900 group-open:hidden">Aanpassen</span>
+                    <div><div className="flex flex-wrap items-center gap-2"><p className="font-black">{assignment}</p>{archived && <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">Gearchiveerd</span>}</div><p className="mt-1 text-sm text-slate-500">{module?.title ?? "Zonder module"} · {selectedGoals.length} leerdoelen gekoppeld</p></div>
+                    <span className="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900 group-open:hidden">{archived ? "Bekijken" : "Aanpassen"}</span>
                   </summary>
                   <form className="border-t border-slate-200 p-5" onSubmit={(event) => { event.preventDefault(); const goals = new FormData(event.currentTarget).getAll("goals").map(String); updateAssignmentGoals(assignment, goals); setAssignmentMessages((current) => ({ ...current, [assignment]: "Leerdoelen opgeslagen. Studenten zien de wijziging direct." })); }}>
-                    <fieldset><legend className="font-black">Kies leerdoelen</legend><div className="mt-3 grid gap-3 md:grid-cols-2">{state.goalCatalog.map((goal) => <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3" key={goal.id}><input className="mt-1 size-4 accent-teal-700" type="checkbox" name="goals" value={goal.title} defaultChecked={selectedGoals.includes(goal.title)} /><span><span className="block text-sm font-bold">{goal.title}</span><span className="mt-0.5 block text-xs text-slate-500">{goal.domain} · {goal.description}</span></span></label>)}</div></fieldset>
+                    {!archived && <fieldset><legend className="font-black">Kies leerdoelen</legend><div className="mt-3 grid gap-3 md:grid-cols-2">{state.goalCatalog.filter((goal) => !goal.archived).map((goal) => <label className="flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 p-3" key={goal.id}><input className="mt-1 size-5 accent-teal-700" type="checkbox" name="goals" value={goal.title} defaultChecked={selectedGoals.includes(goal.title)} /><span><span className="block text-sm font-bold">{goal.title}</span><span className="mt-0.5 block text-xs text-slate-500">{goal.domain} · {goal.description}</span></span></label>)}</div></fieldset>}
                     {!selectedGoals.length && <p className="mt-3 text-sm font-semibold text-amber-800">Aan deze opdracht zijn nog geen leerdoelen gekoppeld.</p>}
-                    <div className="mt-4 flex flex-wrap items-center gap-3"><button className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 font-bold text-white"><Save className="size-4" aria-hidden />Leerdoelen opslaan</button>{assignmentMessages[assignment] && <p role="status" className="text-sm font-bold text-emerald-800">{assignmentMessages[assignment]}</p>}</div>
+                    <div className="mt-4 flex flex-wrap items-center gap-3">{!archived && <button className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 font-bold text-white"><Save className="size-4" aria-hidden />Leerdoelen opslaan</button>}<button type="button" onClick={() => toggleAssignmentArchive(assignment)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold">{archived ? "Opdracht herstellen" : "Opdracht archiveren"}</button>{assignmentMessages[assignment] && <p role="status" className="text-sm font-bold text-emerald-800">{assignmentMessages[assignment]}</p>}</div>
                   </form>
                 </details>
               );

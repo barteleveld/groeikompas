@@ -15,10 +15,14 @@ export async function signIn(_: AuthState, formData: FormData): Promise<AuthStat
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.user) return { error: "Inloggen is niet gelukt. Controleer je gegevens." };
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+  const { data: profile } = await supabase.from("profiles").select("role,is_active").eq("id", data.user.id).single();
   if (!profile) {
     await supabase.auth.signOut();
     return { error: "Je account heeft nog geen profiel. Vraag je beheerder om hulp." };
+  }
+  if (!profile.is_active) {
+    await supabase.auth.signOut();
+    return { error: "Dit account is gedeactiveerd. Neem contact op met de beheerder." };
   }
   redirect(roleHome(profile.role));
 }

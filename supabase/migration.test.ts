@@ -9,6 +9,7 @@ beforeAll(async () => {
   await db.exec(`
     create schema auth;
     create schema storage;
+    create role anon;
     create role authenticated;
     create table auth.users (
       instance_id uuid,

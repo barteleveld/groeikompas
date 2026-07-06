@@ -23,7 +23,7 @@ export default function StudentDemo() {
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<Record<string, string>>({});
   const assignmentFeedback = state.assignmentFeedback.filter((item) => item.student === "Lina Bakker");
-  const visibleModules = state.modules.filter((module) => module.published && !module.archived && module.cohorts.includes("Marketing & Communicatie 4A"));
+  const visibleModules = state.modules.filter((module) => module.published && !module.archived && module.cohorts.includes("Marketing & Communicatie 4A")).map((module) => ({ ...module, assignments: module.assignments.filter((assignment) => !state.archivedAssignments.includes(assignment)) }));
   const assignments = visibleModules.flatMap((module) => module.assignments);
   const progress = state.assignmentProgress["Lina Bakker"] ?? {};
   const completedAssignments = assignments.filter((assignment) => progress[assignment] === "Afgerond").length;

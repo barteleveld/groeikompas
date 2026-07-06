@@ -32,6 +32,7 @@ const nav: Record<UserRole, { href: string; label: string }[]> = {
 export function AppShell({ role, name, children }: { role: UserRole; name: string; children: React.ReactNode }) {
   return (
     <div className="app-canvas min-h-screen text-slate-950">
+      <a href="#main-content" className="sr-only z-50 rounded-lg bg-white px-4 py-3 font-bold text-teal-800 focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Ga naar de inhoud</a>
       <header className="border-b border-rose-100 bg-white/95 shadow-sm shadow-rose-950/5 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-7 gap-y-3 px-4 py-3 sm:px-6">
           <Link href={nav[role][0].href} className="shrink-0"><BrandMark /></Link>
@@ -44,7 +45,7 @@ export function AppShell({ role, name, children }: { role: UserRole; name: strin
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-10">{children}</main>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-10">{children}</main>
     </div>
   );
 }
