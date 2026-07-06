@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Archive, ArrowDown, ArrowUp, Eye, EyeOff, MessageSquareText, Pencil, Save } from "lucide-react";
+import { Archive, ArrowDown, ArrowUp, ArrowUpDown, Eye, EyeOff, MessageSquareText, Pencil, Save } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import {
   demoAssignmentStatuses,
@@ -13,6 +13,13 @@ import {
 } from "@/components/demo/demo-state";
 
 type Tab = "overzicht" | "feedback" | "assignments" | "modules" | "planning";
+type SortKey = "student" | "className" | "module" | "assignment" | "goal" | "status";
+type SortState = { key: SortKey; direction: "asc" | "desc" };
+
+function SortButton({ column, label, sort, onSort }: { column: SortKey; label: string; sort: SortState; onSort: (key: SortKey) => void }) {
+  const active = sort.key === column;
+  return <button type="button" onClick={() => onSort(column)} className="inline-flex min-h-11 items-center gap-1.5 font-black text-slate-800" aria-label={`Sorteer op ${label}${active ? sort.direction === "asc" ? ", aflopend" : ", oplopend" : ""}`}>{label}<ArrowUpDown className={`size-4 ${active ? "text-teal-700" : "text-slate-400"}`} aria-hidden /></button>;
+}
 
 function statusColor(status: DemoAssignmentStatus) {
   if (status === "Afgerond") return "bg-emerald-50 text-emerald-900";
@@ -33,10 +40,12 @@ export default function TeacherDemo() {
   const [feedbackMessages, setFeedbackMessages] = useState<Record<string, string>>({});
   const [assignmentMessages, setAssignmentMessages] = useState<Record<string, string>>({});
   const [overviewClass, setOverviewClass] = useState("Alle klassen");
+  const [overviewStudent, setOverviewStudent] = useState("");
   const [overviewModuleId, setOverviewModuleId] = useState("");
   const [overviewAssignment, setOverviewAssignment] = useState("");
   const [overviewStatus, setOverviewStatus] = useState("Alle statussen");
   const [overviewGoal, setOverviewGoal] = useState("");
+  const [sort, setSort] = useState<SortState>({ key: "student", direction: "asc" });
 
   const editingModule = state.modules.find((module) => module.id === editingModuleId);
   const feedbackModule = state.modules.find((module) => module.id === feedbackModuleId) ?? state.modules[0];
@@ -48,16 +57,34 @@ export default function TeacherDemo() {
   const allAssignments = [...new Set(activeModules.flatMap((module) => module.assignments))].filter((assignment) => !state.archivedAssignments.includes(assignment));
   const overviewAssignments = (overviewModule?.assignments ?? allAssignments).filter((assignment) => !overviewGoal || state.learningGoals[assignment]?.includes(overviewGoal));
   const assignmentModules = allKnownAssignments.map((assignment) => ({ assignment, module: state.modules.find((module) => module.assignments.includes(assignment)) }));
-  const overviewStudents = demoStudents.filter((student) => {
-    if (overviewClass !== "Alle klassen" && demoStudentClasses[student] !== overviewClass) return false;
-    const status = overviewAssignment ? state.assignmentProgress[student]?.[overviewAssignment] ?? "Nog niet gestart" : state.studentStatus[student];
-    return overviewStatus === "Alle statussen" || status === overviewStatus;
-  });
+  const hasOverviewFilter = overviewClass !== "Alle klassen" || Boolean(overviewStudent || overviewModuleId || overviewAssignment || overviewGoal) || overviewStatus !== "Alle statussen";
+  const overviewRows = hasOverviewFilter ? demoStudents.flatMap((student) => {
+    if (overviewStudent && student !== overviewStudent) return [];
+    if (overviewClass !== "Alle klassen" && demoStudentClasses[student] !== overviewClass) return [];
+    return overviewAssignments.flatMap((assignment) => {
+      if (overviewAssignment && assignment !== overviewAssignment) return [];
+      const moduleRecord = activeModules.find((item) => item.assignments.includes(assignment));
+      const status = state.assignmentProgress[student]?.[assignment] ?? "Nog niet gestart";
+      if (overviewStatus !== "Alle statussen" && status !== overviewStatus) return [];
+      return [{ student, className: demoStudentClasses[student], module: moduleRecord?.title ?? "Zonder module", moduleId: moduleRecord?.id ?? "", assignment, goal: (state.learningGoals[assignment] ?? []).join(", ") || "Nog niet gekoppeld", status }];
+    });
+  }).sort((left, right) => {
+    const result = String(left[sort.key]).localeCompare(String(right[sort.key]), "nl", { sensitivity: "base" });
+    return sort.direction === "asc" ? result : -result;
+  }) : [];
 
-  function openFeedback(student: string) {
-    const currentModule = overviewModule ?? activeModules[0];
+  function changeSort(key: SortKey) {
+    setSort((current) => current.key === key ? { key, direction: current.direction === "asc" ? "desc" : "asc" } : { key, direction: "asc" });
+  }
+
+  function clearOverviewFilters() {
+    setOverviewClass("Alle klassen"); setOverviewStudent(""); setOverviewModuleId(""); setOverviewAssignment(""); setOverviewGoal(""); setOverviewStatus("Alle statussen");
+  }
+
+  function openFeedback(student: string, assignment = overviewAssignment, moduleId = overviewModuleId) {
+    const currentModule = state.modules.find((module) => module.id === moduleId) ?? overviewModule ?? activeModules[0];
     setFeedbackModuleId(currentModule?.id ?? "");
-    setFeedbackAssignment(overviewAssignment || currentModule?.assignments[0] || "");
+    setFeedbackAssignment(assignment || currentModule?.assignments[0] || "");
     setFeedbackClass(demoStudentClasses[student] ?? demoClasses[0]);
     setTab("feedback");
     setFeedbackMessages({});
@@ -115,53 +142,26 @@ export default function TeacherDemo() {
   return (
     <>
       <PageHeader eyebrow="Docentoverzicht" title="Wie heeft nu wat nodig?" description="Volg de voortgang per klas, geef gerichte feedback en plan de volgende stap." />
-      <div className="mb-6 flex flex-wrap gap-2">
-        {([
-          ["overzicht", "Voortgang"],
-          ["feedback", "Feedback op opdracht"],
-          ["assignments", "Opdrachten"],
-          ["modules", "Modules"],
-          ["planning", "Feedback plannen"],
-        ] as [Tab, string][]).map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)} className={`rounded-xl px-4 py-2.5 text-sm font-bold ${tab === id ? "bg-teal-700 text-white" : "border border-slate-300 bg-white"}`}>{label}</button>
-        ))}
-      </div>
+      <nav aria-label="Docentwerkzaamheden" className="mb-6 grid gap-3 lg:grid-cols-[1fr_auto]">
+        <section className="rounded-2xl border border-rose-100 bg-white p-3"><p className="mb-2 px-1 text-xs font-black uppercase tracking-wide text-teal-700">Dagelijks werken</p><div className="flex flex-wrap gap-2">{([['overzicht','Voortgang bekijken'],['feedback','Feedback geven'],['planning','Feedback plannen']] as [Tab,string][]).map(([id,label])=><button key={id} onClick={()=>setTab(id)} className={`min-h-11 rounded-xl px-4 py-2.5 text-sm font-bold ${tab===id?"bg-teal-700 text-white":"border border-slate-300 bg-white"}`}>{label}</button>)}</div></section>
+        <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-3"><p className="mb-2 px-1 text-xs font-black uppercase tracking-wide text-orange-800">Bouwen & beheren</p><div className="flex flex-wrap gap-2">{([['assignments','Opdrachten beheren'],['modules','Modules beheren']] as [Tab,string][]).map(([id,label])=><button key={id} onClick={()=>setTab(id)} className={`min-h-11 rounded-xl px-4 py-2.5 text-sm font-bold ${tab===id?"bg-orange-600 text-white":"border border-orange-200 bg-white text-slate-800"}`}>{label}</button>)}</div></section>
+      </nav>
 
       {tab === "overzicht" && (
         <div className="space-y-5">
-          <section className="card p-5">
-            <div><p className="text-xs font-bold uppercase tracking-wide text-teal-700">Gericht overzicht</p><h2 className="mt-1 text-xl font-black">Filter studenten die aandacht nodig hebben</h2></div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <label className="text-sm font-bold">Klas<select className="field mt-1" value={overviewClass} onChange={(event) => setOverviewClass(event.target.value)}><option>Alle klassen</option>{demoClasses.map((className) => <option key={className}>{className}</option>)}</select></label>
-              <label className="text-sm font-bold">Module<select className="field mt-1" value={overviewModuleId} onChange={(event) => { const selected = state.modules.find((item) => item.id === event.target.value); setOverviewModuleId(event.target.value); setOverviewAssignment(selected?.assignments[0] ?? ""); }}><option value="">Alle modules</option>{activeModules.map((module) => <option value={module.id} key={module.id}>{module.title}</option>)}</select></label>
+          <section className="card p-4 sm:p-5">
+            <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-teal-700">Gericht overzicht</p><h2 className="mt-1 text-xl font-black">Maak eerst een selectie</h2><p className="mt-1 text-sm text-slate-600">Kies minimaal één filter. Daarna tonen we alleen de gegevens waarmee je wilt werken.</p></div>{hasOverviewFilter && <button type="button" onClick={clearOverviewFilters} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold">Alle filters wissen</button>}</div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <label className="text-sm font-bold">Student<select className="field mt-1" value={overviewStudent} onChange={(event) => setOverviewStudent(event.target.value)}><option value="">Alle studenten</option>{demoStudents.filter((student) => overviewClass === "Alle klassen" || demoStudentClasses[student] === overviewClass).map((student) => <option key={student}>{student}</option>)}</select></label>
+              <label className="text-sm font-bold">Klas<select className="field mt-1" value={overviewClass} onChange={(event) => { setOverviewClass(event.target.value); if (overviewStudent && event.target.value !== "Alle klassen" && demoStudentClasses[overviewStudent] !== event.target.value) setOverviewStudent(""); }}><option>Alle klassen</option>{demoClasses.map((className) => <option key={className}>{className}</option>)}</select></label>
+              <label className="text-sm font-bold">Module<select className="field mt-1" value={overviewModuleId} onChange={(event) => { setOverviewModuleId(event.target.value); const selected = state.modules.find((item) => item.id === event.target.value); if (overviewAssignment && !selected?.assignments.includes(overviewAssignment)) setOverviewAssignment(""); }}><option value="">Alle modules</option>{activeModules.map((module) => <option value={module.id} key={module.id}>{module.title}</option>)}</select></label>
               <label className="text-sm font-bold">Opdracht<select className="field mt-1" value={overviewAssignment} onChange={(event) => setOverviewAssignment(event.target.value)}><option value="">Alle opdrachten</option>{overviewAssignments.map((assignment) => <option key={assignment}>{assignment}</option>)}</select></label>
-              <label className="text-sm font-bold">Leerdoel<select className="field mt-1" value={overviewGoal} onChange={(event) => { const goal = event.target.value; setOverviewGoal(goal); const available = (overviewModule?.assignments ?? allAssignments).filter((assignment) => !goal || state.learningGoals[assignment]?.includes(goal)); if (overviewAssignment && !available.includes(overviewAssignment)) setOverviewAssignment(available[0] ?? ""); }}><option value="">Alle leerdoelen</option>{state.goalCatalog.map((goal) => <option key={goal.id} value={goal.title}>{goal.title}</option>)}</select></label>
-              <label className="text-sm font-bold">Status<select className="field mt-1" value={overviewStatus} onChange={(event) => setOverviewStatus(event.target.value)}><option>Alle statussen</option>{overviewAssignment ? demoAssignmentStatuses.map((status) => <option key={status}>{status}</option>) : [...new Set(Object.values(state.studentStatus))].map((status) => <option key={status}>{status}</option>)}</select></label>
+              <label className="text-sm font-bold">Leerdoel<select className="field mt-1" value={overviewGoal} onChange={(event) => { const goal = event.target.value; setOverviewGoal(goal); const available = (overviewModule?.assignments ?? allAssignments).filter((assignment) => !goal || state.learningGoals[assignment]?.includes(goal)); if (overviewAssignment && !available.includes(overviewAssignment)) setOverviewAssignment(""); }}><option value="">Alle leerdoelen</option>{state.goalCatalog.filter((goal) => !goal.archived).map((goal) => <option key={goal.id} value={goal.title}>{goal.title}</option>)}</select></label>
+              <label className="text-sm font-bold">Status<select className="field mt-1" value={overviewStatus} onChange={(event) => setOverviewStatus(event.target.value)}><option>Alle statussen</option>{demoAssignmentStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
             </div>
-            <p className="mt-3 text-sm font-semibold text-slate-600">{overviewStudents.length} studenten gevonden{overviewAssignment ? ` voor ${overviewAssignment}` : ""}.</p>
           </section>
 
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
-            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-            <table className="w-full min-w-[650px] text-left text-sm">
-              <thead className="bg-slate-50"><tr><th className="p-4">Student</th><th className="p-4">Klas</th><th className="p-4">{overviewAssignment ? "Opdrachtstatus" : "Signaal"}</th><th className="p-4">Actie</th></tr></thead>
-              <tbody className="divide-y divide-slate-200">
-                {overviewStudents.map((name) => {
-                  const status = overviewAssignment ? state.assignmentProgress[name]?.[overviewAssignment] ?? "Nog niet gestart" : state.studentStatus[name];
-                  return (
-                  <tr key={name}>
-                    <td className="p-4 font-black">{name}</td>
-                    <td className="p-4 text-slate-600">{demoStudentClasses[name]}</td>
-                    <td className="p-4">{overviewAssignment ? <select aria-label={`Status van ${name}`} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold" value={status} onChange={(event) => setAssignmentStatus(name, overviewAssignment, event.target.value as DemoAssignmentStatus)}>{demoAssignmentStatuses.map((item) => <option key={item}>{item}</option>)}</select> : <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-bold text-amber-950">{status}</span>}</td>
-                    <td className="p-4"><button onClick={() => openFeedback(name)} className="font-bold text-teal-700 underline">Feedback geven</button></td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            </div>
-            <section className="card h-fit p-5"><h2 className="font-black">Zo werkt opdrachtfeedback</h2><ol className="mt-3 space-y-3 text-sm text-slate-700"><li><strong>1.</strong> Kies eerst de module en opdracht.</li><li><strong>2.</strong> Filter daarna op klas of status.</li><li><strong>3.</strong> Pas een status direct aan of geef persoonlijke feedback.</li></ol></section>
-          </div>
+          {!hasOverviewFilter ? <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]"><section className="card grid min-h-56 place-items-center p-6 text-center"><div><p className="text-lg font-black">Nog geen selectie gemaakt</p><p className="mt-2 max-w-xl text-sm text-slate-600">Kies bijvoorbeeld een klas, module, opdracht, leerdoel of status. Pas daarna verschijnt de resultatenlijst.</p></div></section><section className="card h-fit p-5"><h2 className="font-black">Zo werkt het overzicht</h2><ol className="mt-3 space-y-3 text-sm text-slate-700"><li><strong>1.</strong> Kies minimaal één filter.</li><li><strong>2.</strong> Bekijk alle bijbehorende gegevens in één tabel.</li><li><strong>3.</strong> Sorteer via een kolomtitel of geef direct feedback.</li></ol></section></div> : <section><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-xl font-black">Geselecteerde voortgang</h2><p className="text-sm font-semibold text-slate-600">{overviewRows.length} regels gevonden. Klik op een kolomtitel om te sorteren.</p></div></div>{overviewRows.length ? <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white"><table className="w-full min-w-[1180px] text-left text-sm"><thead className="bg-slate-50"><tr><th className="px-4" aria-sort={sort.key === "student" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><SortButton column="student" label="Student" sort={sort} onSort={changeSort} /></th><th className="px-4" aria-sort={sort.key === "className" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><SortButton column="className" label="Klas" sort={sort} onSort={changeSort} /></th><th className="px-4" aria-sort={sort.key === "module" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><SortButton column="module" label="Module" sort={sort} onSort={changeSort} /></th><th className="px-4" aria-sort={sort.key === "assignment" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><SortButton column="assignment" label="Opdracht" sort={sort} onSort={changeSort} /></th><th className="px-4" aria-sort={sort.key === "goal" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><SortButton column="goal" label="Leerdoel" sort={sort} onSort={changeSort} /></th><th className="px-4" aria-sort={sort.key === "status" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><SortButton column="status" label="Status" sort={sort} onSort={changeSort} /></th><th className="p-4">Actie</th></tr></thead><tbody className="divide-y divide-slate-200">{overviewRows.map((row) => <tr key={`${row.student}-${row.assignment}`}><td className="p-4 font-black">{row.student}</td><td className="p-4 text-slate-600">{row.className}</td><td className="p-4 font-semibold">{row.module}</td><td className="p-4 font-semibold">{row.assignment}</td><td className="max-w-64 p-4 text-slate-600">{row.goal}</td><td className="p-4"><select aria-label={`Status van ${row.student} voor ${row.assignment}`} className={`rounded-lg border border-slate-200 px-2 py-2 text-xs font-bold ${statusColor(row.status)}`} value={row.status} onChange={(event) => setAssignmentStatus(row.student, row.assignment, event.target.value as DemoAssignmentStatus)}>{demoAssignmentStatuses.map((item) => <option key={item}>{item}</option>)}</select></td><td className="p-4"><button onClick={() => openFeedback(row.student, row.assignment, row.moduleId)} className="min-h-11 font-bold text-teal-700 underline">Feedback geven</button></td></tr>)}</tbody></table></div> : <div className="card p-6 text-center"><p className="font-black">Geen resultaten voor deze combinatie</p><p className="mt-2 text-sm text-slate-600">Maak één filter ruimer of wis de selectie.</p></div>}</section>}
         </div>
       )}
 
