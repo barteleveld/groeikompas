@@ -9,6 +9,7 @@ import { requireRole } from "@/lib/auth/session";
 import { deriveNextActions } from "@/lib/progress/next-actions";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
+import { assignmentStatusLabels } from "@/types/domain";
 import type { AssignmentProgress, FeedbackItem, GoalProgress } from "@/types/domain";
 
 type Join<T> = T | T[] | null;
@@ -30,14 +31,18 @@ export default async function StudentDashboard() {
   const completed = assignments.filter((a) => a.status === "completed").length;
   const awaiting = assignments.filter((a) => a.status === "submitted").length;
   const toProcess = feedback.filter((f) => !f.processedByStudent).length;
+  const completedItems = assignments.filter((assignment) => assignment.status === "completed").map((assignment) => ({ label: assignment.title, href: `/student/opdrachten/${assignment.assignmentId}`, meta: "Afgerond" }));
+  const openItems = assignments.filter((assignment) => assignment.status !== "completed").map((assignment) => ({ label: assignment.title, href: `/student/opdrachten/${assignment.assignmentId}`, meta: assignmentStatusLabels[assignment.status] }));
+  const awaitingItems = assignments.filter((assignment) => assignment.status === "submitted").map((assignment) => ({ label: assignment.title, href: `/student/opdrachten/${assignment.assignmentId}`, meta: "Wacht op docent" }));
+  const feedbackItems = feedback.filter((item) => !item.processedByStudent).flatMap((item) => { const href = item.assignmentId ? `/student/opdrachten/${item.assignmentId}` : item.learningGoalId ? `/student/leerdoelen/${item.learningGoalId}` : null; return href ? [{ label: item.subject, href, meta: "Nog reageren" }] : []; });
 
   return <>
     <PageHeader eyebrow="Mijn ontwikkeling" title={`Hoi ${profile.full_name.split(" ")[0]}`} description="Waar werk je naartoe, waar sta je nu en wat wordt je volgende stap?" />
     <section aria-label="Samenvatting" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <SummaryCard icon={BookCheck} value={`${completed} van ${assignments.length}`} label="opdrachten afgerond" hint="Afgerond zegt iets over de taak, niet automatisch over je leerdoel." />
-      <SummaryCard icon={ClipboardList} value={String(assignments.length - completed)} label="opdrachten open" hint="Van nog niet gestart tot feedback verwerkt." />
-      <SummaryCard icon={MessageSquareText} value={String(awaiting)} label="wachten op feedback" hint="Je docent is nu aan zet." />
-      <SummaryCard icon={Target} value={String(toProcess)} label="feedback te verwerken" hint="Laat zien wat je met de aanwijzingen hebt gedaan." />
+      <SummaryCard icon={BookCheck} value={`${completed} van ${assignments.length}`} label="opdrachten afgerond" hint="Bekijk welke opdrachten klaar zijn." items={completedItems} emptyText="Je hebt nog geen opdrachten afgerond." />
+      <SummaryCard icon={ClipboardList} value={String(assignments.length - completed)} label="opdrachten open" hint="Kies direct waar je mee verdergaat." items={openItems} emptyText="Je hebt geen openstaande opdrachten." />
+      <SummaryCard icon={MessageSquareText} value={String(awaiting)} label="wachten op feedback" hint="Bekijk waarop je docent gaat reageren." items={awaitingItems} emptyText="Er wachten nu geen opdrachten op feedback." />
+      <SummaryCard icon={Target} value={String(toProcess)} label="feedback te verwerken" hint="Ga direct naar de feedback waarop je moet reageren." items={feedbackItems} emptyText="Je hebt alle ontvangen feedback verwerkt." />
     </section>
     <div className="mt-9 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
       <section><div className="mb-4 flex items-end justify-between"><div><h2 className="text-xl font-black">Mijn volgende acties</h2><p className="mt-1 text-sm text-slate-600">Begin bovenaan; daar ligt nu de meeste winst.</p></div></div><ActionList actions={actions} /></section>

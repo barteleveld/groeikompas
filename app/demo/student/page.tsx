@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BookCheck, CheckCircle2, ChevronDown, ClipboardList, History, Layers3, MessageSquareText, Target, Upload } from "lucide-react";
 import { SummaryCard } from "@/components/dashboard/summary-card";
 import { PageHeader } from "@/components/layout/page-header";
@@ -31,6 +31,23 @@ export default function StudentDemo() {
   const waitingForFeedback = assignments.filter((assignment) => progress[assignment] === "Ingeleverd").length;
   const feedbackToProcess = assignmentFeedback.filter((item) => !item.response).length;
   const totalProgress = assignments.length ? Math.round((completedAssignments / assignments.length) * 100) : 0;
+  const completedItems = assignments.filter((assignment) => progress[assignment] === "Afgerond").map((assignment) => ({ label: assignment, href: `#${assignmentAnchor(assignment)}`, meta: "Afgerond" }));
+  const activeItems = assignments.filter((assignment) => !["Nog niet gestart", "Afgerond"].includes(progress[assignment] ?? "Nog niet gestart")).map((assignment) => ({ label: assignment, href: `#${assignmentAnchor(assignment)}`, meta: progress[assignment] }));
+  const waitingItems = assignments.filter((assignment) => progress[assignment] === "Ingeleverd").map((assignment) => ({ label: assignment, href: `#${assignmentAnchor(assignment)}`, meta: "Wacht op docent" }));
+  const feedbackItems = assignmentFeedback.filter((item) => !item.response).map((item) => ({ label: item.assignment, href: `#${assignmentAnchor(item.assignment)}`, meta: "Nog reageren" }));
+
+  useEffect(() => {
+    function revealAssignment() {
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      const target = id ? document.getElementById(id) : null;
+      if (!target) return;
+      let current: HTMLElement | null = target;
+      while (current) { if (current instanceof HTMLDetailsElement) current.open = true; current = current.parentElement; }
+      requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+    window.addEventListener("hashchange", revealAssignment); revealAssignment();
+    return () => window.removeEventListener("hashchange", revealAssignment);
+  }, []);
 
   return (
     <>
@@ -42,10 +59,10 @@ export default function StudentDemo() {
       />
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard icon={BookCheck} value={`${completedAssignments} van ${assignments.length}`} label="opdrachten afgerond" hint={`${totalProgress}% van alle opdrachten is klaar.`} />
-        <SummaryCard icon={ClipboardList} value={String(activeAssignments)} label="opdrachten bezig" hint="Hier kun je direct mee verder." />
-        <SummaryCard icon={MessageSquareText} value={String(waitingForFeedback)} label="wacht op feedback" hint="Je docent is nu aan zet." />
-        <SummaryCard icon={Target} value={String(feedbackToProcess)} label="feedback te verwerken" hint="Laat zien wat je hebt aangepast." />
+        <SummaryCard icon={BookCheck} value={`${completedAssignments} van ${assignments.length}`} label="opdrachten afgerond" hint="Bekijk welke opdrachten klaar zijn." items={completedItems} emptyText="Je hebt nog geen opdrachten afgerond." />
+        <SummaryCard icon={ClipboardList} value={String(activeAssignments)} label="opdrachten bezig" hint="Kies direct waar je mee verdergaat." items={activeItems} emptyText="Je hebt momenteel geen opdracht in uitvoering." />
+        <SummaryCard icon={MessageSquareText} value={String(waitingForFeedback)} label="wacht op feedback" hint="Bekijk waarop je docent gaat reageren." items={waitingItems} emptyText="Er wachten nu geen opdrachten op feedback." />
+        <SummaryCard icon={Target} value={String(feedbackToProcess)} label="feedback te verwerken" hint="Ga direct naar de feedback waarop je moet reageren." items={feedbackItems} emptyText="Je hebt alle ontvangen feedback verwerkt." />
       </section>
 
       <section id="modules" className="mt-8 scroll-mt-6">
